@@ -1,0 +1,460 @@
+/*
+ * AuditModel
+ *
+ * Requires jArchi - https://www.archimatetool.com/blog/2018/07/02/jarchi/
+ *
+ * Version 0.1: Audits all elements in selected view, comparing to a view called "Audit"
+ * Version 0.2: Bug in "Template" selection - fixed
+ * Version 0.3: Audits all elements in selected view, allowing a user to select from views in an "Audit" Folder
+ *              Creates the Audit folder and a default Audit view if one is not found.
+ * Version 0.4: 2023-03-11 - Support for Audit on Documentation/Properties of the View,
+ *              Fix bug for "note" on default generated Audit
+ *              Fix for non-escaped regexes in generated Audit.
+ * Version 0.5: Updated to fix some UI elements
+ * Version 0.6: 2026-01-10 - Fixed template selection bug using incorrect CSS selector syntax
+ *
+ * Further information can be found here: https://smileham.co.uk/2022/10/04/auditing-an-archi-view-for-compliance-with-jarchi/
+ *
+ * (c) 2025 Steven Mileham
+ *
+ */
+
+var debug = false;
+var colourise = false;
+var auditLevel = 0;
+
+function listSelection(title, choices) {
+    var ListSelectionDialog = Java.type("org.eclipse.ui.dialogs.ListSelectionDialog");
+    var LabelProvider = Java.type('org.eclipse.jface.viewers.LabelProvider');
+    var ArrayContentProvider = Java.type('org.eclipse.jface.viewers.ArrayContentProvider');
+    var dialog = new ListSelectionDialog(shell, choices, ArrayContentProvider.getInstance(),
+        new LabelProvider(), title);
+
+    dialog.open();
+    result = dialog.getResult();
+    return result ? new String(result) : null;
+}
+
+console.show();
+console.clear();
+console.log("Audit Model Script");
+
+// TODO: Optional Properties - Done 29/9
+// TODO: Relationships - Done 29/9
+// TODO: Generic Components (pass in type to auditComponents?) (based on components found in Audit view!!!) - Done 29/9
+// TODO: Colour code based on Score - Done 3/10
+// TODO: Options menu (Properties/Relationships/All) - Done 3/10
+
+// TODO: Optional Relationships/Mandatory Relationships (*(blank)/+)
+// TODO: Template matching based on Property (i.e. if Property is set, perform additional audit: Logical Component can Realize Physical Component)
+// TODO: Error levels (e.g. Info/Warn/Error)
+// TODO: Export Report
+// TODO: Add Report to Note on View
+
+function createTemplate() {
+    var theViews = $("folder.Views").first();
+    var theApplications = $("folder.Application").first();
+    var theTechnology = $("folder.Technology & Physical").first();
+    var theRelations = $("folder.Relations").first();
+    var theApplicationsFolder = theApplications.createFolder("Audit");
+    var theTechnologyFolder = theTechnology.createFolder("Audit");
+    var theRelationsFolder = theRelations.createFolder("Audit");
+
+
+    var theFolder = theViews.createFolder("Audit");
+    var theAudit = model.createArchimateView("Default",theFolder);
+    theAudit.documentation = "\\w+";
+    theAudit.prop("Created_by","^\\w+$");
+
+    // Default Elements (Application)
+    // I use the following for "Names" ^(\[[\w&\-]{2,8}\] )?([\w \-:\.\/@"&]+)( \([\w \-\/]+\))?( \[proposed\])?$
+    var theApplicationComponent = model.createElement("application-component","^.+$",theApplicationsFolder);
+    theApplicationComponent.documentation="\\w+"
+    theApplicationComponent.prop("Standards Class","^(Standard|Non-Standard|Phasing-Out Standard|Proposed Standard|Retired Standard)$");
+    theApplicationComponent.prop("Category","^(Physical Application Component|Logical Application Component)$");
+    theApplicationComponent.prop("Website","^http(s)?://.*$")
+
+    var theApplicationFunction = model.createElement("application-function","^.+$",theApplicationsFolder);
+    theApplicationFunction.documentation="\\w+"
+
+    var theApplicationService = model.createElement("application-service","^.+$",theApplicationsFolder);
+    theApplicationService.documentation="\\w+"
+
+    var theApplicationData = model.createElement("data-object","^.+$",theApplicationsFolder);
+    theApplicationData.documentation="\\w+"
+
+    var theApplicationInterface = model.createElement("application-interface","^.+$",theApplicationsFolder);
+    theApplicationInterface.documentation="\\w+"
+
+    var theApplicationProcess = model.createElement("application-process","^.+$",theApplicationsFolder);
+    theApplicationProcess.documentation="\\w+"
+
+    // Default Elements (Technology)
+    // I use the following for "Names" ^(\[[\w&\-]{2,8}\] )?([\w \-:\.\/@"&]+)( \([\w \-\/]+\))?( \[proposed\])?$
+    var theSystemSoftware = model.createElement("system-software","^.+$",theTechnologyFolder);
+    theSystemSoftware.documentation="\\w+"
+    theSystemSoftware.prop("Standards Class","^(Standard|Non-Standard|Phasing-Out Standard|Proposed Standard|Retired Standard)$");
+    theSystemSoftware.prop("Category","^(Physical Application Component|Logical Application Component)$");
+    theSystemSoftware.prop("Website","^http(s)?://.*$")
+
+    var theArtifact = model.createElement("artifact","^.+$",theTechnologyFolder);
+    theArtifact.documentation="\\w+"
+
+    var theDevice = model.createElement("device","^.+$",theTechnologyFolder);
+    theDevice.documentation="\\w+"
+
+    var theTechnologyProcess = model.createElement("technology-process","^.+$",theTechnologyFolder);
+    theTechnologyProcess.documentation="\\w+"
+
+
+    // Default Relationships
+    var appCompToAppFunc = model.createRelationship("assignment-relationship","",theApplicationComponent, theApplicationFunction, theRelationsFolder);
+    var appCompToAppComp = model.createRelationship("serving-relationship","",theApplicationComponent, theApplicationComponent, theRelationsFolder);
+    var appFuncToAppFunc = model.createRelationship("serving-relationship","",theApplicationFunction, theApplicationFunction, theRelationsFolder);
+    var appFuncToAppComp = model.createRelationship("flow-relationship","",theApplicationFunction, theApplicationComponent, theRelationsFolder);
+    var appFuncToAppServ = model.createRelationship("realization-relationship","",theApplicationFunction, theApplicationService, theRelationsFolder);
+    var appServToAppComp = model.createRelationship("serving-relationship","",theApplicationService, theApplicationComponent, theRelationsFolder);
+    var appCompToAppServ = model.createRelationship("realization-relationship","",theApplicationComponent, theApplicationService, theRelationsFolder);
+    var appIntToAppServ = model.createRelationship("assignment-relationship","",theApplicationInterface, theApplicationService, theRelationsFolder);
+    var appCompToAppInt = model.createRelationship("composition-relationship","",theApplicationComponent, theApplicationInterface, theRelationsFolder);
+    var appProcToAppFunc = model.createRelationship("composition-relationship","",theApplicationProcess, theApplicationFunction, theRelationsFolder);
+    var appCompToAppProc = model.createRelationship("assignment-relationship","",theApplicationComponent, theApplicationProcess, theRelationsFolder);
+
+    var appFuncToAppData = model.createRelationship("access-relationship","",theApplicationFunction, theApplicationData, theRelationsFolder);
+    var appCompToAppData = model.createRelationship("access-relationship","",theApplicationComponent, theApplicationData, theRelationsFolder);
+    var appDataToAppData = model.createRelationship("composition-relationship","",theApplicationData, theApplicationData, theRelationsFolder);
+    appFuncToAppData.accessType="access";
+    appCompToAppData.accessType="access";
+
+    var artifactToAppComp = model.createRelationship("realization-relationship","",theArtifact, theApplicationComponent, theRelationsFolder);
+    var artifactToSysSoft = model.createRelationship("realization-relationship","",theArtifact, theSystemSoftware, theRelationsFolder);
+    var devToArtifact = model.createRelationship("assignment-relationship","",theDevice, theArtifact, theRelationsFolder);
+    var sysSoftToArtifact = model.createRelationship("assignment-relationship","",theSystemSoftware, theArtifact, theRelationsFolder);
+    var sysSoftToTechProc = model.createRelationship("assignment-relationship","",theSystemSoftware, theTechnologyProcess, theRelationsFolder);
+    var sysSoftToAppComp = model.createRelationship("serving-relationship","",theSystemSoftware, theApplicationComponent, theRelationsFolder);
+    var sysSoftAccessArtifact = model.createRelationship("access-relationship","",theSystemSoftware, theArtifact, theRelationsFolder);
+    sysSoftAccessArtifact.accessType="access";
+    var devToSysSoft = model.createRelationship("assignment-relationship","",theDevice, theSystemSoftware, theRelationsFolder);
+
+    // Add to the View
+    var appComp = theAudit.add(theApplicationComponent, 10, 200, -1, -1, true);
+    var appProc = theAudit.add(theApplicationProcess, 300, 200, -1, -1, true);
+    var appFunc = theAudit.add(theApplicationFunction, 10, 300, -1, -1, true);
+    var appServ = theAudit.add(theApplicationService, 10, 400, -1, -1, true);
+    var appInt  = theAudit.add(theApplicationInterface, 300, 400, -1, -1, true);
+    var appData = theAudit.add(theApplicationData, 300, 300, -1, -1, true);
+
+    var sysSoft = theAudit.add(theSystemSoftware, 900, 200, -1, -1, true);
+    var techProc = theAudit.add(theTechnologyProcess, 900, 100, -1, -1, true);
+    var device = theAudit.add(theDevice, 900, 300, -1, -1, true);
+    var artifact = theAudit.add(theArtifact, 600, 200, -1, -1, true);
+
+    //appComp.labelExpression("Application Component");
+    //appFunc.labelExpression("Application Function");
+    theAudit.add(appCompToAppFunc, appComp, appFunc);
+    theAudit.add(appCompToAppComp, appComp, appComp);
+    theAudit.add(appFuncToAppFunc, appFunc, appFunc);
+    theAudit.add(appFuncToAppComp, appFunc, appComp);
+    theAudit.add(appFuncToAppServ, appFunc, appServ);
+    theAudit.add(appServToAppComp, appServ, appComp);
+    theAudit.add(appCompToAppServ, appComp, appServ);
+    theAudit.add(appIntToAppServ, appInt, appServ);
+    theAudit.add(appCompToAppInt, appComp, appInt);
+    theAudit.add(appProcToAppFunc, appProc, appFunc);
+    theAudit.add(appCompToAppProc, appComp, appProc);
+
+    theAudit.add(appFuncToAppData, appFunc, appData);
+    theAudit.add(appCompToAppData, appComp, appData);
+    theAudit.add(appDataToAppData, appData, appData);
+
+    theAudit.add(artifactToAppComp, artifact, appComp);
+    theAudit.add(artifactToSysSoft, artifact, sysSoft);
+    theAudit.add(devToArtifact, device, artifact);
+    theAudit.add(sysSoftToArtifact, sysSoft, artifact);
+    theAudit.add(sysSoftToTechProc, sysSoft, techProc);
+    theAudit.add(sysSoftAccessArtifact, sysSoft, artifact);
+    theAudit.add(sysSoftToAppComp, sysSoft, appComp);
+    theAudit.add(devToSysSoft, device, sysSoft);
+
+    var theNotes = theAudit.createObject("diagram-model-note", 10,10,890,90);
+    theNotes.text = "An Audit view must contain all components wishing to be audited. \n"+
+    "You can create multiple Audit views in the Audit folder, and you will be prompted to select a view.\n"+
+    "Regular Expressions are used to manage compliance with the standard.\n"+
+    " E.g.\n"+
+    " \n"+
+    " Drag Application Component from Palette.\n"+
+    " \n"+
+    " Set following:\n"+
+    " \n"+
+    " Name = \"^.*$\"\n"+
+    " Documentation = \"\\w+\"\n"+
+    " Properties {\n"+
+    "  Category = \"^.*$\"\n"+
+    "  Created Date = \"^(\\d\\d/\\d\\d/\\d\\d)?$\" // that is DD/MM/YY or \"blank\"\n"+
+    "  Standards Class = \"^(Standard|Non-Standard)$\"\n"+
+    "  ID = \"^[A-Z0-9\\-]{3,5}$\"\n"+
+    " }\n"+
+    "\n"+
+    " You could then add an Application Function from Palette.\n"+
+    " \n"+
+    " Name = \"^.*$\"\n"+
+    " Documentation = \"\\w+\"\n"+
+    " \n"+
+    " Now, you can add an Assignment relationship from the Application Component to the Application Function\n"+
+    " \n"+
+    " When you run the scipt it will audit that all Application Components meet the requirements for Name/Documentation and Properties,\n"+
+    " and any Application Function elements are related to the Appliation via an Assignment relationship.+\n"+
+    " \n"+
+    " A report will be sent to the Script Console for review\n"+
+    " \n"+
+    " Further information can be found here: https://smileham.co.uk/2022/10/04/auditing-an-archi-view-for-compliance-with-jarchi/\n"+
+    " \n"+
+    " (c) 2023 Steven Mileham"
+
+    return theAudit;
+}
+
+function validateDocumentation(theTemplate, theComponent) {
+    var reg = new RegExp(theTemplate.documentation);
+    var theValue = theComponent.documentation!=null?theComponent.documentation:"";
+    if (!reg.test(theValue)){
+        return ("Invalid Documentation: "+theValue+"\n");
+        //componentScore++
+    }
+    else {
+        return null;
+        //componentNotes +=;
+    }
+}
+
+function validateProperties(theTemplate, theComponent) {
+    var thePropertyKeys = theTemplate.prop();
+    debug?console.log(thePropertyKeys):true;
+    var theAudit = "";
+    thePropertyKeys.forEach(property => {
+        //console.log (component+":"+property+":"+component.prop("property")+"matches("+theComponentTemplate.prop(property)+")");
+        var theReg = theTemplate.prop(property);
+        var reg = new RegExp(theReg);
+        var theValue = theComponent.prop(property)!=null?theComponent.prop(property):"";
+        if (!reg.test(theValue)){
+            theAudit +="Invalid Property: "+property +" ("+theValue+")\n";
+        }
+    });
+    if (theAudit!="") {
+        return theAudit;
+    }
+    else {
+        return null;
+    }
+
+}
+
+function auditView() {
+    debug?console.log("Auditing: View"):true;
+    viewNotes = theView+"\n";
+    viewScore = 0;
+    // Validate Documentation
+    theAudit = validateDocumentation(theTemplate,theView);
+    if (theAudit!=null) {
+        viewNotes +=theAudit;
+    }
+    else {
+        viewScore++;
+    }
+
+    // Validate Properties
+    var thePropertyKeys = theTemplate.prop();
+    var maxScore = 1+thePropertyKeys.length;
+    theAudit = validateProperties(theTemplate, theView);
+    if (theAudit!=null) {
+        viewNotes +=theAudit;
+        viewScore += thePropertyKeys.length-(theAudit.split("\n").length-1);
+    }
+    else {
+        viewScore += thePropertyKeys.length;
+    }
+
+    if (viewScore!=maxScore) {
+        viewNotes+=viewScore+"/"+maxScore;
+        console.log (viewNotes+"\n");
+    }
+}
+
+function auditComponents(type) {
+    debug?console.log("Auditing: "+type):true;
+    var theComponentTemplate = $(theTemplate).find(type).first();
+    var theComponents = $(theView).find(type);
+
+    var relationshipTemplate = {};
+    /*$(theComponentTemplate).outRels().forEach(element => {
+        if (relationshipTemplate[element.target.type+"-"+element.type]) {
+            var cardinality = element.name==""?"*":element.name
+            relationshipTemplate[element.target.type+"-"+element.type].push(cardinality);
+            debug?console.log("Adding Valid OutRel: "+element.target.type+"-"+element.type+":"+cardinality):true;
+        }
+        else {
+            var cardinality = element.name==""?"*":element.name
+            relationshipTemplate[element.target.type+"-"+element.type] = new Array(cardinality);
+            debug?console.log("Adding Valid OutRel: "+element.target.type+"-"+element.type+":"+cardinality):true;
+        }
+    });*/
+    $(theComponentTemplate).outRels().forEach(element => {
+        if (element.type.indexOf("diagram")<0) {
+            if (relationshipTemplate[element.target.type]) {
+                relationshipTemplate[element.target.type].push(element.type);
+                debug?console.log("Adding Valid OutRel: "+element.target.type+" - "+element.type):true;
+            }
+            else {
+                relationshipTemplate[element.target.type] = new Array(element.type);
+                debug?console.log("Adding Valid OutRel: "+element.target.type+" - "+element.type):true;
+            }
+        }
+    });
+    debug?console.log("Valid Relationships: "+JSON.stringify(relationshipTemplate)):true;
+
+    theComponents.forEach(component => {
+        var maxScore = 0;
+        debug?console.log("validating: "+component.name):true;
+        var componentScore = 0;
+        var componentNotes = component+"\n";
+
+        if (auditLevel == 1 || auditLevel == 3) {
+            var thePropertyKeys = theComponentTemplate.prop();
+            var maxScore = 2+thePropertyKeys.length;
+
+            // Validate Name
+            var reg = new RegExp(theComponentTemplate.name);
+            var theValue = component.name;
+            if (reg.test(theValue)){
+                componentScore++
+            }
+            else {
+                componentNotes +="Invalid Name: "+theValue+"\n";
+            }
+
+            // Validate Documentation
+            theAudit = validateDocumentation(theComponentTemplate,component);
+            if (theAudit!=null) {
+                componentNotes +=theAudit;
+            }
+            else {
+                componentScore++;
+            }
+
+            // Validate Properties
+            theAudit = validateProperties(theComponentTemplate, component);
+            if (theAudit!=null) {
+                componentNotes +=theAudit;
+                componentScore += thePropertyKeys.length-(theAudit.split("\n").length-1);
+            }
+            else {
+                componentScore += thePropertyKeys.length;
+            }
+        }
+
+        if (auditLevel==2 || auditLevel==3) {
+
+            // Validate Relationships
+            var outRels = $(component).outRels();
+
+            outRels.forEach(relationship => {
+                debug?console.log("Validating Relationship: "+relationship.type):true;
+                if (relationship.type.indexOf("diagram")<0) {
+                    if (relationshipTemplate[relationship.target.type] && relationshipTemplate[relationship.target.type].includes(relationship.type)){
+                        debug?console.log("Valid Relationship: (" + relationship.type+" to "+relationship.target.type+")"):true;
+                        componentScore++
+                    }
+                    else {
+                        componentNotes+="Invalid Relationship: (" + relationship.type+" to "+relationship.target.name+":"+relationship.target.type+")\n"
+                        if (colourise) {
+                            relationship.lineColor = "#ff0000";
+                        }
+                    }
+                    maxScore++;
+                }
+            });
+        }
+
+        if (componentScore!=maxScore) {
+            componentNotes+=componentScore+"/"+maxScore;
+            console.log (componentNotes+"\n");
+
+            if (colourise) {
+                if (componentScore/maxScore>0.75) {
+                    component.lineColor = "#ffbf00";
+                }
+                else {
+                    component.lineColor = "#ff0000";
+                }
+
+            }
+        }
+        else {
+            if (colourise) {
+                component.lineColor=null;
+            }
+        }
+    });
+}
+
+var theViews = $("folder.Views").first();
+var theFolder = $(theViews).children("folder.Audit").first();
+var theTemplates = $(theFolder).children("archimate-diagram-model");
+var theView = $(selection).filter("archimate-diagram-model").first();
+var theTemplate = null;
+
+if (theTemplates.length>1) {
+    var theTemplateNames = [];
+    theTemplates.forEach(function (template){
+        theTemplateNames.push(template.name);
+    });
+
+
+    var theAnswer = window.promptSelection("Please select an Audit View?", theTemplateNames);
+    if (theAnswer == null) {
+        console.log("Cancelled");
+        exit();
+    }
+    else {
+        theTemplate = theTemplates.filter(t => t.name === theAnswer).first();
+    }
+}
+else if (theTemplates.length==1) {
+    theTemplate = theTemplates.first();
+}
+else {
+    console.error("No Audit View found, creating Audit");
+    theTemplate = createTemplate();
+}
+
+if (!theView) {
+    console.error("Please select a view to audit.");
+    exit();
+}
+
+ var theAnswer = window.promptSelection("Do you want to colourise, or report only?", ["Colourise", "Report Only"]);
+if (theAnswer == null) {
+    console.log("Cancelled");
+    exit();
+}
+var colourise = theAnswer.includes("Colourise");
+var theAnswer = listSelection("What do you want to Audit?", ["Elements", "Relationships"]);
+if (theAnswer == null) {
+    console.log("Cancelled");
+    exit();
+}
+else if (theAnswer == "Elements"){
+    auditLevel = 1;
+}
+else if (theAnswer == "Relationships") {
+    auditLevel = 2;
+}
+else {
+    auditLevel = 3;
+}
+auditView();
+$(theTemplate).find().forEach(element => {
+    if (element.type.indexOf("relationship")<=0 && element.type.indexOf("diagram")<0) {
+        auditComponents(element.type);
+    }
+});

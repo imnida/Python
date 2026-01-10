@@ -1,0 +1,267 @@
+/*
+ * Colorisation par État
+ *
+ * Description : Applique des couleurs aux éléments selon leur état (AS-IS, TO-BE, etc.)
+ * Auteur : Constitutional AI Framework
+ * Date : 2026-01-10
+ * Version : 1.0
+ *
+ * Intégration Constitutional AI :
+ *   - Traçabilité : OUI (visualisation de l'évolution)
+ *   - Falsifiabilité : NON (visualisation)
+ *   - Choke Points : NON (présentation)
+ *
+ * Palette de couleurs :
+ *   - AS-IS : Vert (#4CAF50)
+ *   - TO-BE : Bleu (#2196F3)
+ *   - TRANSITION : Orange (#FF9800)
+ *   - DEPRECATED : Rouge (#F44336)
+ *   - PLANNED : Violet (#9C27B0)
+ *   - CANCELLED : Gris (#757575)
+ */
+
+console.clear();
+console.show();
+
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+
+var config = {
+    // Propriété contenant l'état
+    stateProperty: "State",
+
+    // Palette de couleurs par état
+    colorPalette: {
+        "AS-IS": {
+            fill: "#4CAF50",
+            line: "#2E7D32",
+            font: "#FFFFFF",
+            name: "Vert (Actuel)"
+        },
+        "TO-BE": {
+            fill: "#2196F3",
+            line: "#1565C0",
+            font: "#FFFFFF",
+            name: "Bleu (Cible)"
+        },
+        "TRANSITION": {
+            fill: "#FF9800",
+            line: "#E65100",
+            font: "#FFFFFF",
+            name: "Orange (En transition)"
+        },
+        "DEPRECATED": {
+            fill: "#F44336",
+            line: "#C62828",
+            font: "#FFFFFF",
+            name: "Rouge (Déprécié)"
+        },
+        "PLANNED": {
+            fill: "#9C27B0",
+            line: "#6A1B9A",
+            font: "#FFFFFF",
+            name: "Violet (Planifié)"
+        },
+        "CANCELLED": {
+            fill: "#757575",
+            line: "#424242",
+            font: "#FFFFFF",
+            name: "Gris (Annulé)"
+        },
+        "UNKNOWN": {
+            fill: "#BDBDBD",
+            line: "#757575",
+            font: "#000000",
+            name: "Gris clair (Inconnu)"
+        }
+    },
+
+    // Options
+    colorizeInAllViews: true,       // Appliquer à toutes les vues
+    colorizeSelectedView: false,    // Appliquer seulement à la vue sélectionnée
+    preserveCustomColors: false,    // Préserver les couleurs personnalisées
+    addLegend: true,                // Ajouter une légende dans la console
+    saveOriginalColors: true,       // Sauvegarder les couleurs originales
+    verbose: true                   // Afficher les détails
+};
+
+// ============================================================================
+// VARIABLES GLOBALES
+// ============================================================================
+
+var stats = {
+    viewsProcessed: 0,
+    elementsColorized: 0,
+    byState: {}
+};
+
+// ============================================================================
+// FONCTIONS UTILITAIRES
+// ============================================================================
+
+function log(level, message) {
+    var prefix = {
+        "INFO": "ℹ️  ",
+        "SUCCESS": "✅ ",
+        "WARNING": "⚠️  ",
+        "ERROR": "❌ "
+    }[level] || "";
+    console.log(prefix + message);
+}
+
+function getElementState(elem) {
+    return elem.prop(config.stateProperty) || "UNKNOWN";
+}
+
+function getColorForState(state) {
+    return config.colorPalette[state] || config.colorPalette["UNKNOWN"];
+}
+
+function saveOriginalColor(viewObject) {
+    // Sauvegarder les couleurs originales dans une propriété
+    if (!viewObject.prop("Original_Fill_Color")) {
+        viewObject.prop("Original_Fill_Color", viewObject.fillColor || "");
+        viewObject.prop("Original_Line_Color", viewObject.lineColor || "");
+        viewObject.prop("Original_Font_Color", viewObject.fontColor || "");
+    }
+}
+
+function colorizeViewObject(viewObject) {
+    var elem = viewObject.concept;
+    if (!elem) return;
+
+    var state = getElementState(elem);
+    var colors = getColorForState(state);
+
+    // Sauvegarder les couleurs originales
+    if (config.saveOriginalColors) {
+        saveOriginalColor(viewObject);
+    }
+
+    // Appliquer les nouvelles couleurs
+    viewObject.fillColor = colors.fill;
+    viewObject.lineColor = colors.line;
+    viewObject.fontColor = colors.font;
+
+    // Stats
+    stats.elementsColorized++;
+    stats.byState[state] = (stats.byState[state] || 0) + 1;
+
+    if (config.verbose) {
+        log("INFO", "   • " + elem.name + " → " + state + " (" + colors.name + ")");
+    }
+}
+
+function colorizeView(view) {
+    if (config.verbose) {
+        log("INFO", "");
+        log("INFO", "📐 Vue: " + view.name);
+    }
+
+    $(view).find("element").each(function(viewObject) {
+        colorizeViewObject(viewObject);
+    });
+
+    stats.viewsProcessed++;
+}
+
+// ============================================================================
+// TRAITEMENT PRINCIPAL
+// ============================================================================
+
+function performColorization() {
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "  COLORISATION PAR ÉTAT");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "");
+
+    if (config.addLegend) {
+        log("INFO", "🎨 Palette de couleurs:");
+        log("INFO", "");
+
+        for (var state in config.colorPalette) {
+            var colors = config.colorPalette[state];
+            log("INFO", "   " + state.padEnd(12, " ") + " → " + colors.name + " (" + colors.fill + ")");
+        }
+
+        log("INFO", "");
+    }
+
+    log("INFO", "🔧 Configuration:");
+    log("INFO", "   • Coloriser toutes les vues: " + (config.colorizeInAllViews ? "OUI" : "NON"));
+    log("INFO", "   • Sauvegarder couleurs originales: " + (config.saveOriginalColors ? "OUI" : "NON"));
+    log("INFO", "");
+    log("INFO", "🎨 Colorisation en cours...");
+    log("INFO", "");
+
+    if (config.colorizeInAllViews) {
+        // Coloriser toutes les vues
+        model.views.each(function(view) {
+            if (view.type === "archimate-diagram-model") {
+                colorizeView(view);
+            }
+        });
+    } else if (config.colorizeSelectedView) {
+        // Coloriser seulement la vue sélectionnée
+        var currentView = $(selection).filter("archimate-diagram-model").first();
+        if (currentView) {
+            colorizeView(currentView);
+        } else {
+            log("ERROR", "Aucune vue sélectionnée. Veuillez ouvrir une vue avant d'exécuter ce script.");
+            return;
+        }
+    }
+
+    log("INFO", "");
+    log("SUCCESS", "✅ Colorisation terminée !");
+}
+
+function displaySummary() {
+    log("INFO", "");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "  RÉSUMÉ DE LA COLORISATION");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "");
+    log("INFO", "📊 Statistiques:");
+    log("INFO", "   • Vues traitées: " + stats.viewsProcessed);
+    log("INFO", "   • Éléments colorisés: " + stats.elementsColorized);
+    log("INFO", "");
+    log("INFO", "📊 Répartition par état:");
+
+    var sortedStates = Object.keys(stats.byState).sort(function(a, b) {
+        return stats.byState[b] - stats.byState[a];
+    });
+
+    sortedStates.forEach(function(state) {
+        var count = stats.byState[state];
+        var colors = getColorForState(state);
+        var pct = (count / stats.elementsColorized * 100).toFixed(1);
+        log("INFO", "   • " + state.padEnd(12, " ") + ": " + count + " (" + pct + "%) - " + colors.name);
+    });
+
+    log("INFO", "");
+
+    if (config.saveOriginalColors) {
+        log("INFO", "💡 Pour restaurer les couleurs originales:");
+        log("INFO", "   • Exécuter restore_original_colors.ajs");
+        log("INFO", "");
+    }
+
+    log("INFO", "📝 Prochaines étapes:");
+    log("INFO", "   1. Créer des vues par état: create_state_views.ajs");
+    log("INFO", "   2. Générer le rapport: generate_state_report.ajs");
+    log("INFO", "");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+}
+
+// ============================================================================
+// EXÉCUTION
+// ============================================================================
+
+try {
+    performColorization();
+    displaySummary();
+} catch (error) {
+    log("ERROR", "Erreur fatale: " + error);
+}

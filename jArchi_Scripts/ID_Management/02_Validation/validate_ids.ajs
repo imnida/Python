@@ -1,0 +1,317 @@
+/*
+ * Validation des Identifiants
+ *
+ * Description : Valide l'unicité et la cohérence des identifiants
+ * Auteur : Constitutional AI Framework
+ * Date : 2026-01-10
+ * Version : 1.0
+ *
+ * Validations effectuées :
+ *   - Unicité des ID métier (ID_Business)
+ *   - Cohérence format (selon stratégie)
+ *   - Détection des ID manquants
+ *   - Vérification des doublons
+ *   - Intégrité du mapping ID technique ↔ ID métier
+ */
+
+console.clear();
+console.show();
+
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+
+var config = {
+    // Propriétés à valider
+    businessIdProperty: "ID_Business",
+    technicalIdProperty: "ID_Technical",
+    originalIdProperty: "ID_Original",
+
+    // Validations à effectuer
+    checkUniqueness: true,
+    checkFormat: true,
+    checkMissing: true,
+    checkOrphans: true,
+
+    // Format attendu (regex patterns)
+    formatPatterns: {
+        uuid: /^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i,
+        sequential: /^[A-Z]{2,4}-\d{3,6}$/,
+        hierarchical: /^[A-Z]{2,4}-[A-Z]{2,4}-\d{3,6}$/,
+        business: /^[A-Z]{2,4}-[A-Z0-9]{1,10}-\d{2,4}$/
+    },
+
+    // Actions correctives
+    autoFix: false,
+    highlightIssues: true
+};
+
+// ============================================================================
+// VARIABLES GLOBALES
+// ============================================================================
+
+var stats = {
+    objectsChecked: 0,
+    validIds: 0,
+    duplicates: 0,
+    missingIds: 0,
+    invalidFormat: 0,
+    orphanedTechnicalIds: 0,
+    errors: 0
+};
+
+var idRegistry = {};  // ID Business → [list of objects]
+var issues = [];
+
+// ============================================================================
+// FONCTIONS UTILITAIRES
+// ============================================================================
+
+function log(level, message) {
+    var prefix = {
+        "INFO": "ℹ️  ",
+        "SUCCESS": "✅ ",
+        "WARNING": "⚠️  ",
+        "ERROR": "❌ "
+    }[level] || "";
+    console.log(prefix + message);
+}
+
+function addIssue(severity, obj, message) {
+    issues.push({
+        severity: severity,
+        object: obj.name,
+        id: obj.id,
+        type: obj.type || "unknown",
+        message: message
+    });
+
+    if (severity === "error") {
+        stats.errors++;
+    }
+}
+
+function validateUniqueness(obj) {
+    var businessId = obj.prop(config.businessIdProperty);
+
+    if (!businessId || businessId === "") {
+        return; // Sera capturé par checkMissing
+    }
+
+    if (!idRegistry[businessId]) {
+        idRegistry[businessId] = [];
+    }
+
+    idRegistry[businessId].push(obj);
+
+    if (idRegistry[businessId].length > 1) {
+        stats.duplicates++;
+        addIssue("error", obj, "ID dupliqué: " + businessId + " (utilisé par " + idRegistry[businessId].length + " objets)");
+    }
+}
+
+function validateFormat(obj) {
+    var businessId = obj.prop(config.businessIdProperty);
+
+    if (!businessId || businessId === "") {
+        return;
+    }
+
+    var strategy = obj.prop("ID_Strategy") || "unknown";
+    var pattern = config.formatPatterns[strategy];
+
+    if (!pattern) {
+        // Stratégie inconnue, on ne peut pas valider le format
+        return;
+    }
+
+    if (!pattern.test(businessId)) {
+        stats.invalidFormat++;
+        addIssue("warning", obj, "Format ID invalide pour stratégie '" + strategy + "': " + businessId);
+    }
+}
+
+function validateMissing(obj) {
+    var businessId = obj.prop(config.businessIdProperty);
+
+    if (!businessId || businessId === "") {
+        stats.missingIds++;
+        addIssue("error", obj, "ID métier manquant (propriété " + config.businessIdProperty + ")");
+    }
+}
+
+function validateTechnicalId(obj) {
+    var technicalId = obj.prop(config.technicalIdProperty);
+    var actualId = obj.id;
+
+    if (technicalId && technicalId !== actualId) {
+        stats.orphanedTechnicalIds++;
+        addIssue("warning", obj, "ID technique incohérent: stocké=" + technicalId + ", actuel=" + actualId);
+    }
+}
+
+// ============================================================================
+// TRAITEMENT PRINCIPAL
+// ============================================================================
+
+function validateObject(obj) {
+    stats.objectsChecked++;
+
+    if (config.checkMissing) {
+        validateMissing(obj);
+    }
+
+    if (config.checkUniqueness) {
+        validateUniqueness(obj);
+    }
+
+    if (config.checkFormat) {
+        validateFormat(obj);
+    }
+
+    if (config.checkOrphans) {
+        validateTechnicalId(obj);
+    }
+
+    // Si aucun problème, compter comme valide
+    var businessId = obj.prop(config.businessIdProperty);
+    if (businessId && idRegistry[businessId] && idRegistry[businessId].length === 1) {
+        stats.validIds++;
+    }
+}
+
+function performValidation() {
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "  VALIDATION DES IDENTIFIANTS");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "");
+    log("INFO", "🔧 Configuration:");
+    log("INFO", "   • Vérification unicité: " + (config.checkUniqueness ? "OUI" : "NON"));
+    log("INFO", "   • Vérification format: " + (config.checkFormat ? "OUI" : "NON"));
+    log("INFO", "   • Détection manquants: " + (config.checkMissing ? "OUI" : "NON"));
+    log("INFO", "");
+    log("INFO", "🔍 Validation en cours...");
+    log("INFO", "");
+
+    // Valider les éléments
+    $("element").each(function(elem) {
+        validateObject(elem);
+    });
+
+    // Valider les relations (si elles ont des ID)
+    $("relationship").each(function(rel) {
+        if (rel.prop(config.businessIdProperty)) {
+            validateObject(rel);
+        }
+    });
+
+    log("INFO", "");
+    log("SUCCESS", "✅ Validation terminée !");
+}
+
+function displayResults() {
+    log("INFO", "");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "  RÉSULTATS DE LA VALIDATION");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "");
+    log("INFO", "📊 Statistiques:");
+    log("INFO", "   • Objets vérifiés: " + stats.objectsChecked);
+    log("INFO", "   • ID valides: " + stats.validIds);
+    log("INFO", "");
+
+    var hasIssues = false;
+
+    if (stats.duplicates > 0) {
+        log("ERROR", "   • ID dupliqués: " + stats.duplicates);
+        hasIssues = true;
+    }
+
+    if (stats.missingIds > 0) {
+        log("ERROR", "   • ID manquants: " + stats.missingIds);
+        hasIssues = true;
+    }
+
+    if (stats.invalidFormat > 0) {
+        log("WARNING", "   • Formats invalides: " + stats.invalidFormat);
+        hasIssues = true;
+    }
+
+    if (stats.orphanedTechnicalIds > 0) {
+        log("WARNING", "   • ID techniques incohérents: " + stats.orphanedTechnicalIds);
+        hasIssues = true;
+    }
+
+    if (!hasIssues) {
+        log("SUCCESS", "   🎉 Aucun problème détecté !");
+    }
+
+    log("INFO", "");
+
+    // Afficher les doublons
+    if (stats.duplicates > 0 && config.checkUniqueness) {
+        log("ERROR", "❌ ID DUPLIQUÉS DÉTECTÉS:");
+        log("INFO", "");
+
+        for (var businessId in idRegistry) {
+            if (idRegistry[businessId].length > 1) {
+                log("ERROR", "• ID: " + businessId + " (utilisé par " + idRegistry[businessId].length + " objets)");
+                idRegistry[businessId].forEach(function(obj) {
+                    log("INFO", "  - " + obj.name + " [" + (obj.type || "unknown") + "] (ArchiMate ID: " + obj.id + ")");
+                });
+                log("INFO", "");
+            }
+        }
+    }
+
+    // Afficher les ID manquants
+    if (stats.missingIds > 0) {
+        log("ERROR", "❌ ID MANQUANTS (premiers 20):");
+        log("INFO", "");
+
+        var displayed = 0;
+        issues.forEach(function(issue) {
+            if (issue.message.indexOf("manquant") !== -1 && displayed < 20) {
+                log("ERROR", "• " + issue.object + " [" + issue.type + "]");
+                displayed++;
+            }
+        });
+
+        if (stats.missingIds > 20) {
+            log("INFO", "... et " + (stats.missingIds - 20) + " autres objets sans ID");
+        }
+
+        log("INFO", "");
+    }
+
+    // Recommandations
+    if (hasIssues) {
+        log("INFO", "📝 Recommandations:");
+
+        if (stats.missingIds > 0) {
+            log("INFO", "   • Exécuter generate_unique_ids.ajs pour générer les ID manquants");
+        }
+
+        if (stats.duplicates > 0) {
+            log("INFO", "   • Résoudre les doublons manuellement ou régénérer avec overwriteExisting: true");
+        }
+
+        if (stats.invalidFormat > 0) {
+            log("INFO", "   • Vérifier la cohérence de la stratégie de génération");
+        }
+    }
+
+    log("INFO", "");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+}
+
+// ============================================================================
+// EXÉCUTION
+// ============================================================================
+
+try {
+    performValidation();
+    displayResults();
+} catch (error) {
+    log("ERROR", "Erreur fatale: " + error);
+}

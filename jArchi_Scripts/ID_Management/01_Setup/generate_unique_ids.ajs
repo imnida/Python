@@ -1,0 +1,415 @@
+/*
+ * Génération d'Identifiants Uniques
+ *
+ * Description : Génère des identifiants uniques standardisés pour tous les éléments
+ * Auteur : Constitutional AI Framework
+ * Date : 2026-01-10
+ * Version : 1.0
+ *
+ * Intégration Constitutional AI :
+ *   - Traçabilité : OUI (identifiants stables pour le suivi)
+ *   - Falsifiabilité : NON (métadonnées)
+ *   - Choke Points : NON (infrastructure)
+ *
+ * Fonctionnalités :
+ *   - Génération d'ID selon plusieurs stratégies (UUID, Séquentiel, Hiérarchique, Métier)
+ *   - Préservation des ID existants (optionnel)
+ *   - Export mapping ID technique → ID métier
+ *   - Validation et détection de doublons
+ *   - Préfixes par type d'élément (APP-, BUS-, TECH-, etc.)
+ */
+
+console.clear();
+console.show();
+
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+
+var config = {
+    // Stratégie de génération d'ID
+    strategy: "hierarchical", // "uuid", "sequential", "hierarchical", "business"
+
+    // Format des identifiants
+    format: {
+        prefix: true,              // Utiliser des préfixes (APP-, BUS-, etc.)
+        separator: "-",            // Séparateur (ex: APP-001)
+        paddingLength: 4,          // Longueur du numéro (ex: 0001)
+        includeLayer: true,        // Inclure le layer dans le préfixe (ex: BUS-APP-001)
+        includeType: false,        // Inclure le type complet (ex: BUS-ACT-001 pour business-actor)
+        uppercase: true            // ID en majuscules
+    },
+
+    // Préfixes par layer ArchiMate
+    layerPrefixes: {
+        "strategy": "STR",
+        "business": "BUS",
+        "application": "APP",
+        "technology": "TECH",
+        "physical": "PHY",
+        "implementation": "IMPL",
+        "motivation": "MOT",
+        "other": "OTH"
+    },
+
+    // Préfixes par type d'élément (optionnel, si includeType = true)
+    typePrefixes: {
+        "business-actor": "ACT",
+        "business-role": "ROL",
+        "business-service": "SRV",
+        "business-process": "PRC",
+        "application-component": "CMP",
+        "application-service": "SRV",
+        "application-interface": "ITF",
+        "technology-node": "NOD",
+        "technology-device": "DEV",
+        "principle": "PRI",
+        "goal": "GOL",
+        "requirement": "REQ"
+        // Ajouter d'autres types au besoin
+    },
+
+    // Propriétés à créer/mettre à jour
+    properties: {
+        businessId: "ID_Business",          // ID métier lisible (ex: APP-PAY-001)
+        technicalId: "ID_Technical",        // ID technique (UUID ou séquentiel)
+        originalId: "ID_Original",          // ID ArchiMate original
+        generationDate: "ID_Generation_Date",
+        generationStrategy: "ID_Strategy"
+    },
+
+    // Options
+    overwriteExisting: false,      // Écraser les ID existants
+    preserveOriginalId: true,      // Sauvegarder l'ID ArchiMate original
+    validateUniqueness: true,      // Vérifier l'unicité
+    skipRelationships: false,      // Ne pas générer d'ID pour les relations (optionnel)
+
+    // Compteurs de départ (pour sequential et hierarchical)
+    startCounters: {
+        strategy: 1,
+        business: 1,
+        application: 1,
+        technology: 1,
+        physical: 1,
+        implementation: 1,
+        motivation: 1,
+        other: 1
+    }
+};
+
+// ============================================================================
+// VARIABLES GLOBALES
+// ============================================================================
+
+var stats = {
+    elementsProcessed: 0,
+    relationshipsProcessed: 0,
+    idsGenerated: 0,
+    idsPreserved: 0,
+    duplicates: 0,
+    errors: 0
+};
+
+var generatedIds = {};  // Pour vérifier l'unicité
+var counters = JSON.parse(JSON.stringify(config.startCounters)); // Clone des compteurs
+
+// ============================================================================
+// FONCTIONS UTILITAIRES
+// ============================================================================
+
+function log(level, message) {
+    var prefix = {
+        "INFO": "ℹ️  ",
+        "SUCCESS": "✅ ",
+        "WARNING": "⚠️  ",
+        "ERROR": "❌ "
+    }[level] || "";
+    console.log(prefix + message);
+}
+
+function getElementLayer(element) {
+    var type = element.type || "";
+
+    // Mapping type → layer
+    if (type.indexOf("business-") === 0) return "business";
+    if (type.indexOf("application-") === 0) return "application";
+    if (type.indexOf("technology-") === 0) return "technology";
+    if (type.indexOf("physical-") === 0) return "physical";
+    if (type.indexOf("implementation-") === 0) return "implementation";
+    if (["principle", "goal", "requirement", "driver", "assessment", "constraint", "meaning", "value"].indexOf(type) !== -1) {
+        return "motivation";
+    }
+    if (type === "location") return "other";
+
+    return "other";
+}
+
+function generateUUID() {
+    // Génération UUID v4 simplifié
+    var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random() * 16 | 0;
+        var v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+    return config.format.uppercase ? uuid.toUpperCase() : uuid;
+}
+
+function generateSequentialId(layer, type) {
+    var prefix = "";
+
+    if (config.format.prefix) {
+        if (config.format.includeLayer) {
+            prefix += config.layerPrefixes[layer] || "OTH";
+        }
+
+        if (config.format.includeType && config.typePrefixes[type]) {
+            if (prefix) prefix += config.format.separator;
+            prefix += config.typePrefixes[type];
+        }
+
+        if (prefix) prefix += config.format.separator;
+    }
+
+    var counter = counters[layer] || 1;
+    var paddedCounter = String(counter).padStart(config.format.paddingLength, "0");
+
+    counters[layer] = counter + 1;
+
+    var id = prefix + paddedCounter;
+    return config.format.uppercase ? id.toUpperCase() : id;
+}
+
+function generateHierarchicalId(element) {
+    // Génération basée sur la hiérarchie du modèle (folders)
+    var layer = getElementLayer(element);
+    var type = element.type || "unknown";
+
+    var prefix = "";
+
+    if (config.format.includeLayer) {
+        prefix += config.layerPrefixes[layer] || "OTH";
+    }
+
+    if (config.format.includeType && config.typePrefixes[type]) {
+        if (prefix) prefix += config.format.separator;
+        prefix += config.typePrefixes[type];
+    }
+
+    if (prefix) prefix += config.format.separator;
+
+    var counter = counters[layer] || 1;
+    var paddedCounter = String(counter).padStart(config.format.paddingLength, "0");
+
+    counters[layer] = counter + 1;
+
+    var id = prefix + paddedCounter;
+    return config.format.uppercase ? id.toUpperCase() : id;
+}
+
+function generateBusinessId(element) {
+    // Génération d'ID métier basée sur le nom de l'élément
+    var name = element.name || "UNNAMED";
+    var layer = getElementLayer(element);
+
+    // Nettoyer le nom : garder seulement alphanumériques
+    var cleanName = name.replace(/[^a-zA-Z0-9]/g, "").substring(0, 10).toUpperCase();
+
+    var prefix = "";
+    if (config.format.includeLayer) {
+        prefix = config.layerPrefixes[layer] || "OTH";
+    }
+
+    var counter = counters[layer] || 1;
+    counters[layer] = counter + 1;
+
+    var id = prefix + config.format.separator + cleanName + config.format.separator + String(counter).padStart(3, "0");
+    return config.format.uppercase ? id.toUpperCase() : id;
+}
+
+function generateId(element) {
+    switch (config.strategy) {
+        case "uuid":
+            return generateUUID();
+        case "sequential":
+            var layer = getElementLayer(element);
+            return generateSequentialId(layer, element.type);
+        case "hierarchical":
+            return generateHierarchicalId(element);
+        case "business":
+            return generateBusinessId(element);
+        default:
+            return generateSequentialId(getElementLayer(element), element.type);
+    }
+}
+
+function checkUniqueness(id, objectName) {
+    if (generatedIds[id]) {
+        log("WARNING", "ID dupliqué détecté: " + id + " (objets: '" + generatedIds[id] + "' et '" + objectName + "')");
+        stats.duplicates++;
+        return false;
+    }
+
+    generatedIds[id] = objectName;
+    return true;
+}
+
+// ============================================================================
+// TRAITEMENT PRINCIPAL
+// ============================================================================
+
+function processObject(obj, objectType) {
+    try {
+        stats[objectType + "sProcessed"]++;
+
+        // Vérifier si l'objet a déjà un ID métier
+        var existingBusinessId = obj.prop(config.properties.businessId);
+
+        if (existingBusinessId && !config.overwriteExisting) {
+            stats.idsPreserved++;
+            generatedIds[existingBusinessId] = obj.name;
+            return;
+        }
+
+        // Sauvegarder l'ID ArchiMate original
+        if (config.preserveOriginalId && !obj.prop(config.properties.originalId)) {
+            obj.prop(config.properties.originalId, obj.id);
+        }
+
+        // Générer le nouvel ID
+        var newId = generateId(obj);
+
+        // Vérifier l'unicité
+        if (config.validateUniqueness) {
+            var attempt = 0;
+            while (!checkUniqueness(newId, obj.name) && attempt < 100) {
+                // En cas de doublon, ajouter un suffixe
+                newId = generateId(obj) + config.format.separator + String(attempt).padStart(2, "0");
+                attempt++;
+            }
+
+            if (attempt >= 100) {
+                log("ERROR", "Impossible de générer un ID unique pour: " + obj.name);
+                stats.errors++;
+                return;
+            }
+        }
+
+        // Assigner les propriétés
+        obj.prop(config.properties.businessId, newId);
+        obj.prop(config.properties.technicalId, obj.id); // ID technique = ID ArchiMate
+        obj.prop(config.properties.generationDate, new Date().toISOString().split('T')[0]);
+        obj.prop(config.properties.generationStrategy, config.strategy);
+
+        stats.idsGenerated++;
+
+    } catch (error) {
+        log("ERROR", "Erreur lors du traitement de '" + obj.name + "': " + error);
+        stats.errors++;
+    }
+}
+
+function generateIds() {
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "  GÉNÉRATION D'IDENTIFIANTS UNIQUES");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "");
+    log("INFO", "🔧 Configuration:");
+    log("INFO", "   • Stratégie: " + config.strategy.toUpperCase());
+    log("INFO", "   • Format: " + (config.format.prefix ? "Avec préfixes" : "Sans préfixes"));
+    log("INFO", "   • Écraser existants: " + (config.overwriteExisting ? "OUI" : "NON"));
+    log("INFO", "   • Validation unicité: " + (config.validateUniqueness ? "OUI" : "NON"));
+    log("INFO", "");
+    log("INFO", "🔄 Traitement en cours...");
+    log("INFO", "");
+
+    // Traiter les éléments
+    log("INFO", "📦 Génération des ID pour les éléments...");
+    $("element").each(function(elem) {
+        processObject(elem, "element");
+    });
+
+    // Traiter les relations (optionnel)
+    if (!config.skipRelationships) {
+        log("INFO", "🔗 Génération des ID pour les relations...");
+        $("relationship").each(function(rel) {
+            processObject(rel, "relationship");
+        });
+    }
+
+    log("INFO", "");
+    log("SUCCESS", "✅ Génération terminée !");
+}
+
+function displaySummary() {
+    log("INFO", "");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "  RÉSUMÉ DE LA GÉNÉRATION");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "");
+    log("INFO", "📊 Objets traités:");
+    log("INFO", "   • Éléments: " + stats.elementsProcessed);
+
+    if (!config.skipRelationships) {
+        log("INFO", "   • Relations: " + stats.relationshipsProcessed);
+    }
+
+    log("INFO", "");
+    log("INFO", "   • ID générés: " + stats.idsGenerated);
+    log("INFO", "   • ID préservés (existants): " + stats.idsPreserved);
+
+    if (stats.duplicates > 0) {
+        log("WARNING", "   • Doublons détectés: " + stats.duplicates);
+    }
+
+    if (stats.errors > 0) {
+        log("ERROR", "   • Erreurs: " + stats.errors);
+    }
+
+    log("INFO", "");
+    log("INFO", "🔢 Compteurs finaux par layer:");
+    for (var layer in counters) {
+        if (counters[layer] > config.startCounters[layer]) {
+            log("INFO", "   • " + layer.toUpperCase() + ": " + (counters[layer] - 1) + " ID générés");
+        }
+    }
+
+    log("INFO", "");
+    log("INFO", "📝 Propriétés créées:");
+    log("INFO", "   • " + config.properties.businessId + " : ID métier lisible");
+    log("INFO", "   • " + config.properties.technicalId + " : ID technique ArchiMate");
+    if (config.preserveOriginalId) {
+        log("INFO", "   • " + config.properties.originalId + " : ID original sauvegardé");
+    }
+
+    log("INFO", "");
+    log("INFO", "💡 Exemples d'ID générés:");
+
+    var examples = 0;
+    $("element").each(function(elem) {
+        if (examples < 5) {
+            var bizId = elem.prop(config.properties.businessId);
+            if (bizId) {
+                log("INFO", "   • " + elem.name + " → " + bizId);
+                examples++;
+            }
+        }
+    });
+
+    log("INFO", "");
+    log("INFO", "📝 Prochaines étapes:");
+    log("INFO", "   1. Valider les ID: validate_ids.ajs");
+    log("INFO", "   2. Exporter le mapping: export_id_mapping.ajs");
+    log("INFO", "");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+}
+
+// ============================================================================
+// EXÉCUTION
+// ============================================================================
+
+try {
+    generateIds();
+    displaySummary();
+} catch (error) {
+    log("ERROR", "Erreur fatale: " + error);
+}

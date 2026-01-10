@@ -1,0 +1,524 @@
+/*
+ * Analyse des Écarts (Gap Analysis) As-Is → To-Be
+ *
+ * Description : Analyse les différences entre l'architecture actuelle et cible
+ * Auteur : Constitutional AI Framework
+ * Date : 2026-01-10
+ * Version : 1.0
+ *
+ * Intégration Constitutional AI :
+ *   - Traçabilité : OUI (suivi des transformations)
+ *   - Falsifiabilité : OUI (conditions de réussite de migration)
+ *   - Choke Points : OUI (risques de transition)
+ *
+ * Analyses effectuées :
+ *   - Éléments à créer (TO-BE nouveaux)
+ *   - Éléments à retirer (AS-IS à supprimer)
+ *   - Éléments à transformer (TRANSITION)
+ *   - Éléments stables (AS-IS → AS-IS)
+ *   - Impact analysis (dépendances)
+ *   - Migration risk assessment
+ */
+
+console.clear();
+console.show();
+
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+
+var config = {
+    // Propriétés à analyser
+    stateProperty: "State",
+    migrationRiskProperty: "Migration_Risk",
+    replacedByProperty: "Replaced_By",
+
+    // Options d'analyse
+    includeRelationships: true,    // Analyser aussi les relations
+    calculateDependencies: true,   // Calculer l'impact des changements
+    assessRisk: true,              // Évaluer les risques de migration
+    identifyOrphans: true,         // Identifier les éléments orphelins
+
+    // Seuils de risque
+    riskThresholds: {
+        criticalDependencies: 10,  // >= 10 dépendances = CRITICAL
+        highDependencies: 5,       // >= 5 dépendances = HIGH
+        mediumDependencies: 2      // >= 2 dépendances = MEDIUM
+    },
+
+    // Export
+    generateReport: true,
+    reportFormat: "console"        // "console" ou "html"
+};
+
+// ============================================================================
+// VARIABLES GLOBALES
+// ============================================================================
+
+var stats = {
+    totalElements: 0,
+    asIsCount: 0,
+    toBeCount: 0,
+    transitionCount: 0,
+    deprecatedCount: 0,
+    plannedCount: 0,
+    cancelledCount: 0,
+    stableCount: 0,              // AS-IS qui restent AS-IS
+    newCount: 0,                 // TO-BE nouveaux
+    retireCount: 0,              // AS-IS à retirer
+    transformCount: 0            // AS-IS → TO-BE (via TRANSITION)
+};
+
+var gaps = {
+    toCreate: [],                // Éléments TO-BE à créer
+    toRetire: [],                // Éléments AS-IS/DEPRECATED à retirer
+    toTransform: [],             // Éléments en TRANSITION
+    stable: [],                  // Éléments stables (AS-IS permanent)
+    orphans: []                  // Éléments sans dépendances
+};
+
+var dependencies = {};           // Map: element.id → {inbound: [], outbound: []}
+
+// ============================================================================
+// FONCTIONS UTILITAIRES
+// ============================================================================
+
+function log(level, message) {
+    var prefix = {
+        "INFO": "ℹ️  ",
+        "SUCCESS": "✅ ",
+        "WARNING": "⚠️  ",
+        "ERROR": "❌ ",
+        "GAP": "🔍 "
+    }[level] || "";
+    console.log(prefix + message);
+}
+
+function getElementState(elem) {
+    return elem.prop(config.stateProperty) || "UNKNOWN";
+}
+
+function calculateDependencyGraph() {
+    // Construire le graphe de dépendances
+    $("element").each(function(elem) {
+        dependencies[elem.id] = {
+            inbound: [],   // Éléments qui dépendent de celui-ci
+            outbound: []   // Éléments dont celui-ci dépend
+        };
+    });
+
+    $("relationship").each(function(rel) {
+        var source = rel.source;
+        var target = rel.target;
+
+        if (source && target && dependencies[source.id] && dependencies[target.id]) {
+            // Source dépend de Target (généralement)
+            dependencies[source.id].outbound.push({
+                element: target,
+                relationType: rel.type
+            });
+
+            dependencies[target.id].inbound.push({
+                element: source,
+                relationType: rel.type
+            });
+        }
+    });
+}
+
+function assessMigrationRisk(elem) {
+    var state = getElementState(elem);
+
+    // Si déjà évalué manuellement, garder l'évaluation
+    var existingRisk = elem.prop(config.migrationRiskProperty);
+    if (existingRisk && existingRisk !== "") {
+        return existingRisk;
+    }
+
+    // Évaluation automatique basée sur les dépendances
+    var deps = dependencies[elem.id];
+    if (!deps) return "LOW";
+
+    var totalDeps = deps.inbound.length + deps.outbound.length;
+
+    var risk;
+    if (totalDeps >= config.riskThresholds.criticalDependencies) {
+        risk = "CRITICAL";
+    } else if (totalDeps >= config.riskThresholds.highDependencies) {
+        risk = "HIGH";
+    } else if (totalDeps >= config.riskThresholds.mediumDependencies) {
+        risk = "MEDIUM";
+    } else {
+        risk = "LOW";
+    }
+
+    // Sauvegarder l'évaluation
+    elem.prop(config.migrationRiskProperty, risk);
+
+    return risk;
+}
+
+function categorizeElement(elem) {
+    var state = getElementState(elem);
+
+    stats.totalElements++;
+
+    switch (state) {
+        case "AS-IS":
+            stats.asIsCount++;
+
+            // Vérifier si cet AS-IS sera remplacé
+            var isReplaced = false;
+            $("element").each(function(otherElem) {
+                if (otherElem.prop(config.replacedByProperty) === elem.prop("ID_Business") ||
+                    otherElem.prop(config.replacedByProperty) === elem.id) {
+                    isReplaced = true;
+                }
+            });
+
+            if (isReplaced) {
+                gaps.toRetire.push(elem);
+                stats.retireCount++;
+            } else {
+                gaps.stable.push(elem);
+                stats.stableCount++;
+            }
+            break;
+
+        case "TO-BE":
+            stats.toBeCount++;
+
+            // Vérifier si c'est un nouvel élément ou un remplacement
+            var replacesId = elem.prop(config.replacedByProperty);
+            if (replacesId) {
+                gaps.toTransform.push(elem);
+                stats.transformCount++;
+            } else {
+                gaps.toCreate.push(elem);
+                stats.newCount++;
+            }
+            break;
+
+        case "TRANSITION":
+            stats.transitionCount++;
+            gaps.toTransform.push(elem);
+            stats.transformCount++;
+            break;
+
+        case "DEPRECATED":
+            stats.deprecatedCount++;
+            gaps.toRetire.push(elem);
+            stats.retireCount++;
+            break;
+
+        case "PLANNED":
+            stats.plannedCount++;
+            gaps.toCreate.push(elem);
+            stats.newCount++;
+            break;
+
+        case "CANCELLED":
+            stats.cancelledCount++;
+            break;
+
+        default:
+            stats.stableCount++;
+            gaps.stable.push(elem);
+            break;
+    }
+}
+
+function identifyOrphans() {
+    $("element").each(function(elem) {
+        var deps = dependencies[elem.id];
+        if (deps && deps.inbound.length === 0 && deps.outbound.length === 0) {
+            gaps.orphans.push(elem);
+        }
+    });
+}
+
+// ============================================================================
+// ANALYSE PRINCIPALE
+// ============================================================================
+
+function performGapAnalysis() {
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "  ANALYSE DES ÉCARTS (GAP ANALYSIS) AS-IS → TO-BE");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "");
+    log("INFO", "🔍 Analyse en cours...");
+    log("INFO", "");
+
+    // 1. Calculer le graphe de dépendances
+    if (config.calculateDependencies) {
+        log("INFO", "📊 Construction du graphe de dépendances...");
+        calculateDependencyGraph();
+    }
+
+    // 2. Catégoriser tous les éléments
+    log("INFO", "🏷️  Catégorisation des éléments par état...");
+    $("element").each(function(elem) {
+        categorizeElement(elem);
+    });
+
+    // 3. Évaluer les risques
+    if (config.assessRisk) {
+        log("INFO", "⚠️  Évaluation des risques de migration...");
+        $("element").each(function(elem) {
+            assessMigrationRisk(elem);
+        });
+    }
+
+    // 4. Identifier les orphelins
+    if (config.identifyOrphans) {
+        log("INFO", "🔍 Identification des éléments orphelins...");
+        identifyOrphans();
+    }
+
+    log("INFO", "");
+    log("SUCCESS", "✅ Analyse terminée !");
+}
+
+// ============================================================================
+// RAPPORTS
+// ============================================================================
+
+function displayOverview() {
+    log("INFO", "");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "  VUE D'ENSEMBLE");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "");
+    log("INFO", "📊 Répartition par état:");
+    log("INFO", "   ✓ AS-IS (Actuel): " + stats.asIsCount);
+    log("INFO", "   ★ TO-BE (Cible): " + stats.toBeCount);
+    log("INFO", "   ⟳ TRANSITION: " + stats.transitionCount);
+    log("INFO", "   ✗ DEPRECATED: " + stats.deprecatedCount);
+    log("INFO", "   ○ PLANNED: " + stats.plannedCount);
+    log("INFO", "   ◌ CANCELLED: " + stats.cancelledCount);
+    log("INFO", "");
+    log("INFO", "   • Total éléments: " + stats.totalElements);
+    log("INFO", "");
+}
+
+function displayGapSummary() {
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "  RÉSUMÉ DES ÉCARTS");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "");
+    log("INFO", "📈 Actions requises:");
+    log("INFO", "");
+    log("INFO", "   🆕 À CRÉER: " + stats.newCount + " éléments");
+    log("INFO", "      Nouveaux éléments TO-BE sans équivalent AS-IS");
+    log("INFO", "");
+    log("INFO", "   🔄 À TRANSFORMER: " + stats.transformCount + " éléments");
+    log("INFO", "      Éléments en transition AS-IS → TO-BE");
+    log("INFO", "");
+    log("INFO", "   🗑️  À RETIRER: " + stats.retireCount + " éléments");
+    log("INFO", "      Éléments AS-IS/DEPRECATED à décommissionner");
+    log("INFO", "");
+    log("INFO", "   ✔️  STABLES: " + stats.stableCount + " éléments");
+    log("INFO", "      Éléments AS-IS qui restent en place");
+    log("INFO", "");
+
+    if (gaps.orphans.length > 0) {
+        log("WARNING", "   ⚠️  ORPHELINS: " + gaps.orphans.length + " éléments");
+        log("INFO", "      Éléments sans dépendances (candidats à la suppression?)");
+        log("INFO", "");
+    }
+}
+
+function displayDetailedGaps() {
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "  DÉTAILS DES ÉCARTS");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "");
+
+    // Éléments à créer
+    if (gaps.toCreate.length > 0) {
+        log("GAP", "🆕 ÉLÉMENTS À CRÉER (" + gaps.toCreate.length + "):");
+        log("INFO", "");
+
+        var displayed = 0;
+        gaps.toCreate.forEach(function(elem) {
+            if (displayed < 10) {
+                var risk = elem.prop(config.migrationRiskProperty) || "N/A";
+                log("INFO", "   • " + elem.name + " [" + (elem.type || "unknown") + "]");
+                log("INFO", "     Risque: " + risk);
+                displayed++;
+            }
+        });
+
+        if (gaps.toCreate.length > 10) {
+            log("INFO", "   ... et " + (gaps.toCreate.length - 10) + " autres");
+        }
+        log("INFO", "");
+    }
+
+    // Éléments à transformer
+    if (gaps.toTransform.length > 0) {
+        log("GAP", "🔄 ÉLÉMENTS À TRANSFORMER (" + gaps.toTransform.length + "):");
+        log("INFO", "");
+
+        var displayed = 0;
+        gaps.toTransform.forEach(function(elem) {
+            if (displayed < 10) {
+                var risk = elem.prop(config.migrationRiskProperty) || "N/A";
+                var replacesId = elem.prop(config.replacedByProperty) || "N/A";
+                log("INFO", "   • " + elem.name + " [" + (elem.type || "unknown") + "]");
+                log("INFO", "     Remplace: " + replacesId);
+                log("INFO", "     Risque: " + risk);
+                displayed++;
+            }
+        });
+
+        if (gaps.toTransform.length > 10) {
+            log("INFO", "   ... et " + (gaps.toTransform.length - 10) + " autres");
+        }
+        log("INFO", "");
+    }
+
+    // Éléments à retirer
+    if (gaps.toRetire.length > 0) {
+        log("GAP", "🗑️  ÉLÉMENTS À RETIRER (" + gaps.toRetire.length + "):");
+        log("INFO", "");
+
+        var displayed = 0;
+        gaps.toRetire.forEach(function(elem) {
+            if (displayed < 10) {
+                var deps = dependencies[elem.id];
+                var depCount = deps ? (deps.inbound.length + deps.outbound.length) : 0;
+                log("INFO", "   • " + elem.name + " [" + (elem.type || "unknown") + "]");
+                log("INFO", "     Dépendances: " + depCount);
+                displayed++;
+            }
+        });
+
+        if (gaps.toRetire.length > 10) {
+            log("INFO", "   ... et " + (gaps.toRetire.length - 10) + " autres");
+        }
+        log("INFO", "");
+    }
+
+    // Éléments orphelins
+    if (gaps.orphans.length > 0) {
+        log("WARNING", "⚠️  ÉLÉMENTS ORPHELINS (" + gaps.orphans.length + "):");
+        log("INFO", "   Aucune dépendance détectée - Vérifier si nécessaires");
+        log("INFO", "");
+
+        var displayed = 0;
+        gaps.orphans.forEach(function(elem) {
+            if (displayed < 5) {
+                log("INFO", "   • " + elem.name + " [" + getElementState(elem) + "]");
+                displayed++;
+            }
+        });
+
+        if (gaps.orphans.length > 5) {
+            log("INFO", "   ... et " + (gaps.orphans.length - 5) + " autres");
+        }
+        log("INFO", "");
+    }
+}
+
+function displayRiskAnalysis() {
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "  ANALYSE DES RISQUES DE MIGRATION");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "");
+
+    var riskCounts = {
+        "CRITICAL": 0,
+        "HIGH": 0,
+        "MEDIUM": 0,
+        "LOW": 0
+    };
+
+    var criticalElements = [];
+
+    $("element").each(function(elem) {
+        var risk = elem.prop(config.migrationRiskProperty);
+        if (risk) {
+            riskCounts[risk] = (riskCounts[risk] || 0) + 1;
+
+            if (risk === "CRITICAL") {
+                criticalElements.push(elem);
+            }
+        }
+    });
+
+    log("INFO", "📊 Répartition des risques:");
+    log("ERROR", "   🔴 CRITICAL: " + riskCounts.CRITICAL);
+    log("WARNING", "   🟠 HIGH: " + riskCounts.HIGH);
+    log("INFO", "   🟡 MEDIUM: " + riskCounts.MEDIUM);
+    log("SUCCESS", "   🟢 LOW: " + riskCounts.LOW);
+    log("INFO", "");
+
+    if (criticalElements.length > 0) {
+        log("ERROR", "⚠️  ÉLÉMENTS À RISQUE CRITIQUE:");
+        log("INFO", "");
+
+        criticalElements.forEach(function(elem) {
+            var deps = dependencies[elem.id];
+            var depCount = deps ? (deps.inbound.length + deps.outbound.length) : 0;
+            log("ERROR", "   • " + elem.name);
+            log("INFO", "     Dépendances: " + depCount + " (in: " + deps.inbound.length + ", out: " + deps.outbound.length + ")");
+        });
+
+        log("INFO", "");
+    }
+}
+
+function displayRecommendations() {
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "  RECOMMANDATIONS");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "");
+
+    if (gaps.toCreate.length > 0) {
+        log("INFO", "📝 Créations à planifier:");
+        log("INFO", "   1. Identifier les phases de déploiement");
+        log("INFO", "   2. Définir les critères de succès");
+        log("INFO", "   3. Allouer les ressources nécessaires");
+        log("INFO", "");
+    }
+
+    if (gaps.toTransform.length > 0) {
+        log("INFO", "📝 Transformations à orchestrer:");
+        log("INFO", "   1. Créer un plan de migration détaillé");
+        log("INFO", "   2. Définir les fenêtres de maintenance");
+        log("INFO", "   3. Préparer les rollback plans");
+        log("INFO", "");
+    }
+
+    if (gaps.toRetire.length > 0) {
+        log("INFO", "📝 Retraits à organiser:");
+        log("INFO", "   1. Vérifier les dépendances");
+        log("INFO", "   2. Planifier le décommissionnement");
+        log("INFO", "   3. Archiver les données si nécessaire");
+        log("INFO", "");
+    }
+
+    log("INFO", "📝 Prochaines étapes:");
+    log("INFO", "   1. Générer la roadmap: generate_migration_roadmap.ajs");
+    log("INFO", "   2. Visualiser par état: colorize_by_state.ajs");
+    log("INFO", "   3. Créer les vues: create_state_views.ajs");
+    log("INFO", "   4. Rapport complet: generate_state_report.ajs");
+    log("INFO", "");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+}
+
+// ============================================================================
+// EXÉCUTION
+// ============================================================================
+
+try {
+    performGapAnalysis();
+    displayOverview();
+    displayGapSummary();
+    displayDetailedGaps();
+    displayRiskAnalysis();
+    displayRecommendations();
+} catch (error) {
+    log("ERROR", "Erreur fatale: " + error);
+}

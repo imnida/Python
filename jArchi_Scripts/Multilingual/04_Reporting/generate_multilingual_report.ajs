@@ -1,0 +1,403 @@
+/*
+ * Rapport de Couverture Multilingue
+ *
+ * Description : Génère un rapport détaillé de la couverture des traductions
+ * Auteur : Constitutional AI Framework
+ * Date : 2026-01-10
+ * Version : 1.0
+ *
+ * Intégration Constitutional AI :
+ *   - Traçabilité : NON (rapport de métadonnées)
+ *   - Falsifiabilité : NON (analytics)
+ *   - Choke Points : NON (documentation)
+ *
+ * Fonctionnalités :
+ *   - Calcule le pourcentage de couverture par langue
+ *   - Liste les éléments sans traduction
+ *   - Identifie les traductions incomplètes
+ *   - Génère un rapport console et optionnel HTML
+ */
+
+console.clear();
+console.show();
+
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+
+var config = {
+    // Langues à analyser
+    languages: ["fr", "en", "de", "es", "it", "pt"],
+
+    // Types d'objets à inclure
+    analyzeElements: true,
+    analyzeRelationships: true,
+    analyzeViews: true,
+
+    // Options du rapport
+    showMissingTranslations: true,     // Liste des traductions manquantes
+    showIncompleteObjects: true,       // Objets avec traductions partielles
+    showTopTranslated: true,           // Top 10 des objets les mieux traduits
+    showLanguageMatrix: true,          // Matrice de couverture par langue
+
+    // Seuils
+    minCoverageWarning: 80,            // Avertissement si couverture < 80%
+    incompleteThreshold: 50,           // Objet incomplet si < 50% traduit
+
+    // Export HTML
+    generateHTMLReport: false,         // Générer un rapport HTML
+    htmlFileName: "multilingual_report.html"
+};
+
+// ============================================================================
+// VARIABLES GLOBALES
+// ============================================================================
+
+var stats = {
+    totalObjects: 0,
+    objectsByType: {
+        element: 0,
+        relationship: 0,
+        view: 0
+    },
+    coverageByLanguage: {},
+    fullyTranslated: 0,
+    partiallyTranslated: 0,
+    notTranslated: 0,
+    missingTranslations: []
+};
+
+var languageNames = {
+    fr: { name: "Français", flag: "🇫🇷" },
+    en: { name: "English", flag: "🇬🇧" },
+    de: { name: "Deutsch", flag: "🇩🇪" },
+    es: { name: "Español", flag: "🇪🇸" },
+    it: { name: "Italiano", flag: "🇮🇹" },
+    pt: { name: "Português", flag: "🇵🇹" },
+    nl: { name: "Nederlands", flag: "🇳🇱" },
+    zh: { name: "中文", flag: "🇨🇳" },
+    ja: { name: "日本語", flag: "🇯🇵" },
+    ar: { name: "العربية", flag: "🇸🇦" }
+};
+
+// ============================================================================
+// FONCTIONS UTILITAIRES
+// ============================================================================
+
+function log(level, message) {
+    var prefix = {
+        "INFO": "ℹ️  ",
+        "SUCCESS": "✅ ",
+        "WARNING": "⚠️  ",
+        "ERROR": "❌ ",
+        "HEADER": "📋 "
+    }[level] || "";
+    console.log(prefix + message);
+}
+
+function getTranslationCoverage(obj, lang) {
+    var hasName = false;
+    var hasDescription = false;
+
+    var nameProp = "ML_Name_" + lang;
+    var descProp = "ML_Description_" + lang;
+
+    var nameValue = obj.prop(nameProp);
+    var descValue = obj.prop(descProp);
+
+    hasName = nameValue && nameValue !== "";
+    hasDescription = descValue && descValue !== "";
+
+    return {
+        hasName: hasName,
+        hasDescription: hasDescription,
+        coverage: (hasName ? 50 : 0) + (hasDescription ? 50 : 0)
+    };
+}
+
+function analyzeObject(obj, type) {
+    stats.totalObjects++;
+    stats.objectsByType[type]++;
+
+    var objectCoverage = {};
+    var totalCoverage = 0;
+
+    config.languages.forEach(function(lang) {
+        var coverage = getTranslationCoverage(obj, lang);
+        objectCoverage[lang] = coverage;
+        totalCoverage += coverage.coverage;
+
+        // Mise à jour des stats par langue
+        if (!stats.coverageByLanguage[lang]) {
+            stats.coverageByLanguage[lang] = {
+                totalCoverage: 0,
+                nameTranslations: 0,
+                descriptionTranslations: 0,
+                completeObjects: 0
+            };
+        }
+
+        stats.coverageByLanguage[lang].totalCoverage += coverage.coverage;
+        if (coverage.hasName) stats.coverageByLanguage[lang].nameTranslations++;
+        if (coverage.hasDescription) stats.coverageByLanguage[lang].descriptionTranslations++;
+        if (coverage.coverage === 100) stats.coverageByLanguage[lang].completeObjects++;
+
+        // Traductions manquantes
+        if (config.showMissingTranslations && !coverage.hasName) {
+            stats.missingTranslations.push({
+                type: type,
+                name: obj.name,
+                id: obj.id,
+                language: lang,
+                field: "name"
+            });
+        }
+
+        if (config.showMissingTranslations && !coverage.hasDescription) {
+            stats.missingTranslations.push({
+                type: type,
+                name: obj.name,
+                id: obj.id,
+                language: lang,
+                field: "description"
+            });
+        }
+    });
+
+    // Classification de l'objet
+    var avgCoverage = totalCoverage / config.languages.length;
+    if (avgCoverage === 100) {
+        stats.fullyTranslated++;
+    } else if (avgCoverage > 0) {
+        stats.partiallyTranslated++;
+    } else {
+        stats.notTranslated++;
+    }
+}
+
+// ============================================================================
+// ANALYSE
+// ============================================================================
+
+function performAnalysis() {
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "  RAPPORT DE COUVERTURE MULTILINGUE");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "");
+    log("INFO", "🔍 Analyse en cours...");
+    log("INFO", "");
+
+    // Analyser les éléments
+    if (config.analyzeElements) {
+        $("element").each(function(elem) {
+            analyzeObject(elem, "element");
+        });
+    }
+
+    // Analyser les relations
+    if (config.analyzeRelationships) {
+        $("relationship").each(function(rel) {
+            analyzeObject(rel, "relationship");
+        });
+    }
+
+    // Analyser les vues
+    if (config.analyzeViews) {
+        model.views.each(function(view) {
+            analyzeObject(view, "view");
+        });
+    }
+
+    log("SUCCESS", "✅ Analyse terminée !");
+    log("INFO", "");
+}
+
+// ============================================================================
+// RAPPORTS
+// ============================================================================
+
+function displayOverview() {
+    log("HEADER", "═══════════════════════════════════════════════════════════");
+    log("HEADER", "  VUE D'ENSEMBLE");
+    log("HEADER", "═══════════════════════════════════════════════════════════");
+    log("INFO", "");
+    log("INFO", "📊 Objets analysés:");
+    log("INFO", "   • Éléments: " + stats.objectsByType.element);
+    log("INFO", "   • Relations: " + stats.objectsByType.relationship);
+    log("INFO", "   • Vues: " + stats.objectsByType.view);
+    log("INFO", "   • Total: " + stats.totalObjects);
+    log("INFO", "");
+    log("INFO", "🌐 Langues analysées: " + config.languages.length);
+    config.languages.forEach(function(lang) {
+        var info = languageNames[lang];
+        log("INFO", "   " + info.flag + " " + info.name);
+    });
+    log("INFO", "");
+}
+
+function displayTranslationStatus() {
+    log("HEADER", "═══════════════════════════════════════════════════════════");
+    log("HEADER", "  STATUT DES TRADUCTIONS");
+    log("HEADER", "═══════════════════════════════════════════════════════════");
+    log("INFO", "");
+
+    var fullyPct = (stats.fullyTranslated / stats.totalObjects * 100).toFixed(1);
+    var partialPct = (stats.partiallyTranslated / stats.totalObjects * 100).toFixed(1);
+    var nonePct = (stats.notTranslated / stats.totalObjects * 100).toFixed(1);
+
+    log("INFO", "✅ Entièrement traduits: " + stats.fullyTranslated + " (" + fullyPct + "%)");
+    log("INFO", "🟡 Partiellement traduits: " + stats.partiallyTranslated + " (" + partialPct + "%)");
+    log("INFO", "❌ Non traduits: " + stats.notTranslated + " (" + nonePct + "%)");
+    log("INFO", "");
+
+    // Barre de progression
+    var barLength = 50;
+    var fullyBar = Math.round(stats.fullyTranslated / stats.totalObjects * barLength);
+    var partialBar = Math.round(stats.partiallyTranslated / stats.totalObjects * barLength);
+
+    var bar = "";
+    for (var i = 0; i < fullyBar; i++) bar += "█";
+    for (var i = 0; i < partialBar; i++) bar += "▓";
+    for (var i = fullyBar + partialBar; i < barLength; i++) bar += "░";
+
+    log("INFO", "Progression: [" + bar + "]");
+    log("INFO", "");
+}
+
+function displayCoverageByLanguage() {
+    log("HEADER", "═══════════════════════════════════════════════════════════");
+    log("HEADER", "  COUVERTURE PAR LANGUE");
+    log("HEADER", "═══════════════════════════════════════════════════════════");
+    log("INFO", "");
+
+    config.languages.forEach(function(lang) {
+        var langStats = stats.coverageByLanguage[lang];
+        var info = languageNames[lang];
+
+        var avgCoverage = (langStats.totalCoverage / (stats.totalObjects * 100) * 100).toFixed(1);
+        var namePct = (langStats.nameTranslations / stats.totalObjects * 100).toFixed(1);
+        var descPct = (langStats.descriptionTranslations / stats.totalObjects * 100).toFixed(1);
+
+        log("INFO", info.flag + " " + info.name + " (" + lang.toUpperCase() + "):");
+        log("INFO", "   • Couverture globale: " + avgCoverage + "%");
+        log("INFO", "   • Noms traduits: " + langStats.nameTranslations + "/" + stats.totalObjects + " (" + namePct + "%)");
+        log("INFO", "   • Descriptions traduites: " + langStats.descriptionTranslations + "/" + stats.totalObjects + " (" + descPct + "%)");
+        log("INFO", "   • Objets complets: " + langStats.completeObjects);
+
+        // Avertissement si couverture faible
+        if (parseFloat(avgCoverage) < config.minCoverageWarning) {
+            log("WARNING", "   ⚠️  Couverture inférieure à " + config.minCoverageWarning + "%");
+        }
+
+        log("INFO", "");
+    });
+}
+
+function displayMissingTranslations() {
+    if (!config.showMissingTranslations || stats.missingTranslations.length === 0) {
+        return;
+    }
+
+    log("HEADER", "═══════════════════════════════════════════════════════════");
+    log("HEADER", "  TRADUCTIONS MANQUANTES (Top 20)");
+    log("HEADER", "═══════════════════════════════════════════════════════════");
+    log("INFO", "");
+
+    var displayed = 0;
+    var maxDisplay = 20;
+
+    stats.missingTranslations.forEach(function(missing) {
+        if (displayed >= maxDisplay) return;
+
+        var langInfo = languageNames[missing.language];
+        log("WARNING", "• " + missing.name + " [" + missing.type + "]");
+        log("INFO", "  Manque: " + langInfo.flag + " " + missing.language.toUpperCase() + " - " + missing.field);
+
+        displayed++;
+    });
+
+    if (stats.missingTranslations.length > maxDisplay) {
+        log("INFO", "");
+        log("INFO", "... et " + (stats.missingTranslations.length - maxDisplay) + " traductions manquantes supplémentaires");
+    }
+
+    log("INFO", "");
+}
+
+function displayMatrix() {
+    if (!config.showLanguageMatrix) {
+        return;
+    }
+
+    log("HEADER", "═══════════════════════════════════════════════════════════");
+    log("HEADER", "  MATRICE DE COUVERTURE");
+    log("HEADER", "═══════════════════════════════════════════════════════════");
+    log("INFO", "");
+
+    // Tableau de couverture
+    var header = "Type        ";
+    config.languages.forEach(function(lang) {
+        header += "│ " + lang.toUpperCase() + "  ";
+    });
+    log("INFO", header);
+    log("INFO", "────────────" + "┼─────".repeat(config.languages.length));
+
+    ["element", "relationship", "view"].forEach(function(type) {
+        if (!config["analyze" + type.charAt(0).toUpperCase() + type.slice(1) + "s"]) {
+            return;
+        }
+
+        var row = type.padEnd(12, " ");
+        config.languages.forEach(function(lang) {
+            var langStats = stats.coverageByLanguage[lang];
+            var coverage = (langStats.totalCoverage / (stats.totalObjects * 100) * 100).toFixed(0);
+            row += "│ " + coverage.padStart(3, " ") + "% ";
+        });
+        log("INFO", row);
+    });
+
+    log("INFO", "");
+}
+
+function displaySummary() {
+    log("HEADER", "═══════════════════════════════════════════════════════════");
+    log("HEADER", "  RECOMMANDATIONS");
+    log("HEADER", "═══════════════════════════════════════════════════════════");
+    log("INFO", "");
+
+    if (stats.notTranslated > 0) {
+        log("WARNING", "⚠️  " + stats.notTranslated + " objets n'ont aucune traduction");
+        log("INFO", "   → Exécuter init_multilingual_properties.ajs");
+    }
+
+    if (stats.partiallyTranslated > 0) {
+        log("WARNING", "⚠️  " + stats.partiallyTranslated + " objets ont des traductions incomplètes");
+        log("INFO", "   → Exporter, traduire et réimporter:");
+        log("INFO", "     1. export_translations.ajs");
+        log("INFO", "     2. Éditer le fichier CSV");
+        log("INFO", "     3. import_translations.ajs");
+    }
+
+    if (stats.fullyTranslated === stats.totalObjects) {
+        log("SUCCESS", "🎉 Toutes les traductions sont complètes !");
+    }
+
+    log("INFO", "");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+}
+
+// ============================================================================
+// EXÉCUTION
+// ============================================================================
+
+try {
+    performAnalysis();
+    displayOverview();
+    displayTranslationStatus();
+    displayCoverageByLanguage();
+    displayMatrix();
+    displayMissingTranslations();
+    displaySummary();
+} catch (error) {
+    log("ERROR", "Erreur fatale: " + error);
+}

@@ -1,0 +1,291 @@
+/*
+ * Initialisation des Propriétés Multilingues
+ *
+ * Description : Initialise les propriétés multilingues sur tous les éléments ArchiMate
+ * Auteur : Constitutional AI Framework
+ * Date : 2026-01-10
+ * Version : 1.0
+ *
+ * Intégration Constitutional AI :
+ *   - Traçabilité : OUI (préserve les relations existantes)
+ *   - Falsifiabilité : NON (setup technique)
+ *   - Choke Points : NON (infrastructure)
+ *
+ * Fonctionnalités :
+ *   - Initialise les propriétés ML_* (MultiLingual) sur tous les éléments
+ *   - Sauvegarde le nom et description originaux dans la langue par défaut
+ *   - Supporte fr, en, de, es, it, pt, nl, zh, ja, ar
+ *   - Gère éléments, relations, vues, dossiers
+ */
+
+console.clear();
+console.show();
+
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+
+var config = {
+    // Langue par défaut du modèle (utilisée pour sauvegarder le contenu actuel)
+    defaultLanguage: "fr",
+
+    // Langues supportées (ISO 639-1)
+    supportedLanguages: [
+        { code: "fr", name: "Français", flag: "🇫🇷" },
+        { code: "en", name: "English", flag: "🇬🇧" },
+        { code: "de", name: "Deutsch", flag: "🇩🇪" },
+        { code: "es", name: "Español", flag: "🇪🇸" },
+        { code: "it", name: "Italiano", flag: "🇮🇹" },
+        { code: "pt", name: "Português", flag: "🇵🇹" },
+        { code: "nl", name: "Nederlands", flag: "🇳🇱" },
+        { code: "zh", name: "中文", flag: "🇨🇳" },
+        { code: "ja", name: "日本語", flag: "🇯🇵" },
+        { code: "ar", name: "العربية", flag: "🇸🇦" }
+    ],
+
+    // Propriétés à initialiser
+    properties: {
+        metadata: true,        // ML_Default_Language, ML_Enabled_Languages
+        name: true,           // ML_Name_{lang}
+        description: true,    // ML_Description_{lang}
+        documentation: true   // ML_Documentation_{lang}
+    },
+
+    // Types d'objets à traiter
+    objectTypes: {
+        elements: true,
+        relationships: true,
+        views: true,
+        folders: false  // Généralement pas nécessaire
+    },
+
+    // Options
+    overwriteExisting: false,  // Ne pas écraser les traductions existantes
+    preserveOriginal: true,    // Garder le nom/description original
+    addTimestamp: true         // Ajouter ML_Init_Date
+};
+
+// ============================================================================
+// VARIABLES GLOBALES
+// ============================================================================
+
+var stats = {
+    elements: 0,
+    relationships: 0,
+    views: 0,
+    folders: 0,
+    propertiesAdded: 0,
+    alreadyInitialized: 0,
+    errors: 0
+};
+
+// ============================================================================
+// FONCTIONS UTILITAIRES
+// ============================================================================
+
+function log(level, message) {
+    var prefix = {
+        "INFO": "ℹ️  ",
+        "SUCCESS": "✅ ",
+        "WARNING": "⚠️  ",
+        "ERROR": "❌ "
+    }[level] || "";
+    console.log(prefix + message);
+}
+
+function hasMultilingualProperties(obj) {
+    var props = obj.prop();
+    for (var key in props) {
+        if (key.indexOf("ML_") === 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function initializeObject(obj, type) {
+    try {
+        // Vérifier si déjà initialisé
+        if (!config.overwriteExisting && hasMultilingualProperties(obj)) {
+            stats.alreadyInitialized++;
+            return;
+        }
+
+        var objName = obj.name || "[Sans nom]";
+        var originalName = objName;
+        var originalDesc = obj.documentation || "";
+
+        // 1. Propriétés de métadonnées
+        if (config.properties.metadata) {
+            obj.prop("ML_Default_Language", config.defaultLanguage);
+            obj.prop("ML_Enabled_Languages", config.supportedLanguages.map(function(l) {
+                return l.code;
+            }).join(","));
+            obj.prop("ML_Current_Language", config.defaultLanguage);
+
+            if (config.addTimestamp) {
+                obj.prop("ML_Init_Date", new Date().toISOString().split('T')[0]);
+            }
+
+            stats.propertiesAdded += 3;
+        }
+
+        // 2. Sauvegarder le nom original dans la langue par défaut
+        if (config.properties.name && originalName !== "[Sans nom]") {
+            var nameProp = "ML_Name_" + config.defaultLanguage;
+            obj.prop(nameProp, originalName);
+            stats.propertiesAdded++;
+
+            // Initialiser les autres langues avec vide ou suggestion
+            config.supportedLanguages.forEach(function(lang) {
+                if (lang.code !== config.defaultLanguage) {
+                    var langNameProp = "ML_Name_" + lang.code;
+                    if (!obj.prop(langNameProp)) {
+                        obj.prop(langNameProp, ""); // Vide, à traduire
+                        stats.propertiesAdded++;
+                    }
+                }
+            });
+        }
+
+        // 3. Sauvegarder la description/documentation originale
+        if (config.properties.description && originalDesc) {
+            var descProp = "ML_Description_" + config.defaultLanguage;
+            obj.prop(descProp, originalDesc);
+            stats.propertiesAdded++;
+
+            // Initialiser les autres langues
+            config.supportedLanguages.forEach(function(lang) {
+                if (lang.code !== config.defaultLanguage) {
+                    var langDescProp = "ML_Description_" + lang.code;
+                    if (!obj.prop(langDescProp)) {
+                        obj.prop(langDescProp, "");
+                        stats.propertiesAdded++;
+                    }
+                }
+            });
+        }
+
+        // 4. Documentation (pour les vues principalement)
+        if (config.properties.documentation && type === "view") {
+            config.supportedLanguages.forEach(function(lang) {
+                var docProp = "ML_Documentation_" + lang.code;
+                if (!obj.prop(docProp)) {
+                    if (lang.code === config.defaultLanguage) {
+                        obj.prop(docProp, originalDesc);
+                    } else {
+                        obj.prop(docProp, "");
+                    }
+                    stats.propertiesAdded++;
+                }
+            });
+        }
+
+        // Incrémenter les stats
+        stats[type + "s"]++;
+
+    } catch (error) {
+        log("ERROR", "Erreur lors de l'initialisation de '" + obj.name + "': " + error);
+        stats.errors++;
+    }
+}
+
+// ============================================================================
+// TRAITEMENT PRINCIPAL
+// ============================================================================
+
+function initializeModel() {
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "  INITIALISATION DES PROPRIÉTÉS MULTILINGUES");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "");
+    log("INFO", "📋 Configuration:");
+    log("INFO", "   • Langue par défaut: " + config.defaultLanguage.toUpperCase());
+    log("INFO", "   • Langues supportées: " + config.supportedLanguages.length);
+
+    config.supportedLanguages.forEach(function(lang) {
+        log("INFO", "      " + lang.flag + " " + lang.code.toUpperCase() + " - " + lang.name);
+    });
+
+    log("INFO", "");
+    log("INFO", "🔧 Traitement en cours...");
+    log("INFO", "");
+
+    // Traiter les éléments
+    if (config.objectTypes.elements) {
+        log("INFO", "📦 Traitement des éléments...");
+        $("element").each(function(elem) {
+            initializeObject(elem, "element");
+        });
+    }
+
+    // Traiter les relations
+    if (config.objectTypes.relationships) {
+        log("INFO", "🔗 Traitement des relations...");
+        $("relationship").each(function(rel) {
+            initializeObject(rel, "relationship");
+        });
+    }
+
+    // Traiter les vues
+    if (config.objectTypes.views) {
+        log("INFO", "👁️  Traitement des vues...");
+        model.views.each(function(view) {
+            initializeObject(view, "view");
+        });
+    }
+
+    // Traiter les dossiers (optionnel)
+    if (config.objectTypes.folders) {
+        log("INFO", "📁 Traitement des dossiers...");
+        // Note: jArchi ne permet pas facilement d'itérer sur tous les dossiers
+        // Cette fonctionnalité peut être ajoutée si nécessaire
+    }
+
+    log("INFO", "");
+    log("SUCCESS", "✅ Initialisation terminée !");
+}
+
+function displaySummary() {
+    log("INFO", "");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "  RÉSUMÉ DE L'INITIALISATION");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "");
+    log("INFO", "📊 Objets traités:");
+    log("INFO", "   • Éléments initialisés: " + stats.elements);
+    log("INFO", "   • Relations initialisées: " + stats.relationships);
+    log("INFO", "   • Vues initialisées: " + stats.views);
+    if (config.objectTypes.folders) {
+        log("INFO", "   • Dossiers initialisés: " + stats.folders);
+    }
+    log("INFO", "");
+    log("INFO", "   • Total objets: " + (stats.elements + stats.relationships + stats.views + stats.folders));
+    log("INFO", "   • Propriétés ajoutées: " + stats.propertiesAdded);
+    log("INFO", "   • Déjà initialisés (ignorés): " + stats.alreadyInitialized);
+
+    if (stats.errors > 0) {
+        log("WARNING", "   • Erreurs rencontrées: " + stats.errors);
+    }
+
+    log("INFO", "");
+    log("INFO", "📝 Prochaines étapes:");
+    log("INFO", "   1. Exporter les traductions: export_translations.ajs");
+    log("INFO", "   2. Traduire le fichier CSV/JSON exporté");
+    log("INFO", "   3. Importer les traductions: import_translations.ajs");
+    log("INFO", "   4. Basculer la langue: switch_language.ajs");
+    log("INFO", "");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+}
+
+// ============================================================================
+// EXÉCUTION
+// ============================================================================
+
+try {
+    initializeModel();
+    displaySummary();
+} catch (error) {
+    log("ERROR", "Erreur fatale: " + error);
+    java.lang.System.exit(1);
+}

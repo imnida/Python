@@ -1,0 +1,386 @@
+/*
+ * Valider les Propriétés Multilingues
+ *
+ * Description : Valide l'intégrité des propriétés multilingues
+ * Auteur : Constitutional AI Framework
+ * Date : 2026-01-10
+ * Version : 1.0
+ *
+ * Intégration Constitutional AI :
+ *   - Traçabilité : NON (validation technique)
+ *   - Falsifiabilité : NON (quality assurance)
+ *   - Choke Points : NON (infrastructure)
+ *
+ * Validations effectuées :
+ *   - Présence des propriétés ML_Default_Language
+ *   - Cohérence entre ML_Enabled_Languages et propriétés ML_Name_*
+ *   - Format des codes de langue (ISO 639-1)
+ *   - Détection de traductions orphelines
+ *   - Cohérence avec la langue courante
+ */
+
+console.clear();
+console.show();
+
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+
+var config = {
+    // Validations à effectuer
+    validateMetadata: true,        // Vérifier ML_Default_Language, etc.
+    validateLanguageCodes: true,   // Vérifier format ISO 639-1
+    validateConsistency: true,     // Cohérence entre propriétés
+    detectOrphans: true,           // Propriétés ML_* orphelines
+
+    // Actions correctives
+    autoFix: false,                // Corriger automatiquement les erreurs
+    removeOrphans: false,          // Supprimer les propriétés orphelines
+
+    // Langues valides (ISO 639-1)
+    validLanguages: ["fr", "en", "de", "es", "it", "pt", "nl", "zh", "ja", "ar", "ru", "ko"],
+
+    // Options
+    verboseLogging: false          // Afficher tous les détails
+};
+
+// ============================================================================
+// VARIABLES GLOBALES
+// ============================================================================
+
+var stats = {
+    objectsChecked: 0,
+    errorsFound: 0,
+    warningsFound: 0,
+    fixedErrors: 0,
+    orphansRemoved: 0
+};
+
+var errors = [];
+var warnings = [];
+
+// ============================================================================
+// FONCTIONS UTILITAIRES
+// ============================================================================
+
+function log(level, message) {
+    var prefix = {
+        "INFO": "ℹ️  ",
+        "SUCCESS": "✅ ",
+        "WARNING": "⚠️  ",
+        "ERROR": "❌ "
+    }[level] || "";
+    console.log(prefix + message);
+}
+
+function addError(obj, message) {
+    errors.push({
+        object: obj.name,
+        id: obj.id,
+        type: obj.type || "unknown",
+        message: message
+    });
+    stats.errorsFound++;
+}
+
+function addWarning(obj, message) {
+    warnings.push({
+        object: obj.name,
+        id: obj.id,
+        type: obj.type || "unknown",
+        message: message
+    });
+    stats.warningsFound++;
+}
+
+function isValidLanguageCode(code) {
+    return config.validLanguages.indexOf(code) !== -1;
+}
+
+// ============================================================================
+// VALIDATIONS
+// ============================================================================
+
+function validateMetadataProperties(obj) {
+    // Vérifier ML_Default_Language
+    var defaultLang = obj.prop("ML_Default_Language");
+
+    if (!defaultLang || defaultLang === "") {
+        addError(obj, "ML_Default_Language manquant ou vide");
+        if (config.autoFix) {
+            obj.prop("ML_Default_Language", "fr");
+            stats.fixedErrors++;
+        }
+        return false;
+    }
+
+    if (config.validateLanguageCodes && !isValidLanguageCode(defaultLang)) {
+        addError(obj, "ML_Default_Language invalide: " + defaultLang);
+        return false;
+    }
+
+    // Vérifier ML_Enabled_Languages
+    var enabledLangs = obj.prop("ML_Enabled_Languages");
+    if (!enabledLangs || enabledLangs === "") {
+        addWarning(obj, "ML_Enabled_Languages manquant");
+        if (config.autoFix) {
+            obj.prop("ML_Enabled_Languages", defaultLang);
+            stats.fixedErrors++;
+        }
+    }
+
+    // Vérifier ML_Current_Language
+    var currentLang = obj.prop("ML_Current_Language");
+    if (!currentLang || currentLang === "") {
+        addWarning(obj, "ML_Current_Language manquant");
+        if (config.autoFix) {
+            obj.prop("ML_Current_Language", defaultLang);
+            stats.fixedErrors++;
+        }
+    } else if (config.validateLanguageCodes && !isValidLanguageCode(currentLang)) {
+        addError(obj, "ML_Current_Language invalide: " + currentLang);
+    }
+
+    return true;
+}
+
+function validateConsistencyProperties(obj) {
+    var defaultLang = obj.prop("ML_Default_Language");
+    var enabledLangsStr = obj.prop("ML_Enabled_Languages");
+
+    if (!defaultLang || !enabledLangsStr) {
+        return false; // Déjà signalé par validateMetadataProperties
+    }
+
+    var enabledLangs = enabledLangsStr.split(",");
+
+    // Récupérer toutes les propriétés ML_Name_*
+    var props = obj.prop();
+    var foundLanguages = [];
+
+    for (var key in props) {
+        if (key.indexOf("ML_Name_") === 0) {
+            var langCode = key.substring(8); // Après "ML_Name_"
+            if (props[key] && props[key] !== "") {
+                foundLanguages.push(langCode);
+            }
+        }
+    }
+
+    // Vérifier que les langues trouvées sont dans enabledLangs
+    foundLanguages.forEach(function(lang) {
+        if (enabledLangs.indexOf(lang) === -1) {
+            addWarning(obj, "Langue '" + lang + "' a une traduction mais n'est pas dans ML_Enabled_Languages");
+        }
+    });
+
+    // Vérifier que defaultLang a une traduction
+    var defaultNameProp = "ML_Name_" + defaultLang;
+    if (!obj.prop(defaultNameProp) || obj.prop(defaultNameProp) === "") {
+        addWarning(obj, "Pas de traduction pour la langue par défaut (" + defaultLang + ")");
+    }
+
+    return true;
+}
+
+function detectOrphanProperties(obj) {
+    var props = obj.prop();
+    var orphans = [];
+
+    for (var key in props) {
+        if (key.indexOf("ML_") === 0) {
+            // Vérifier si c'est une propriété connue
+            var isKnown = false;
+
+            // Propriétés de métadonnées
+            if (["ML_Default_Language", "ML_Current_Language", "ML_Enabled_Languages",
+                 "ML_Init_Date", "ML_Translation_Date", "ML_Language_History"].indexOf(key) !== -1) {
+                isKnown = true;
+            }
+
+            // Propriétés de traduction (ML_Name_*, ML_Description_*, ML_Documentation_*)
+            if (key.indexOf("ML_Name_") === 0 ||
+                key.indexOf("ML_Description_") === 0 ||
+                key.indexOf("ML_Documentation_") === 0) {
+                isKnown = true;
+
+                // Vérifier que le code de langue est valide
+                var parts = key.split("_");
+                if (parts.length >= 3) {
+                    var langCode = parts[2];
+                    if (config.validateLanguageCodes && !isValidLanguageCode(langCode)) {
+                        addWarning(obj, "Code de langue invalide dans propriété: " + key);
+                    }
+                }
+            }
+
+            if (!isKnown) {
+                orphans.push(key);
+            }
+        }
+    }
+
+    if (orphans.length > 0) {
+        addWarning(obj, "Propriétés orphelines détectées: " + orphans.join(", "));
+
+        if (config.removeOrphans) {
+            orphans.forEach(function(prop) {
+                obj.removeProp(prop);
+                stats.orphansRemoved++;
+            });
+        }
+    }
+}
+
+function validateObject(obj) {
+    stats.objectsChecked++;
+
+    // 1. Vérifier les métadonnées
+    if (config.validateMetadata) {
+        validateMetadataProperties(obj);
+    }
+
+    // 2. Vérifier la cohérence
+    if (config.validateConsistency) {
+        validateConsistencyProperties(obj);
+    }
+
+    // 3. Détecter les propriétés orphelines
+    if (config.detectOrphans) {
+        detectOrphanProperties(obj);
+    }
+}
+
+// ============================================================================
+// TRAITEMENT PRINCIPAL
+// ============================================================================
+
+function performValidation() {
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "  VALIDATION DES PROPRIÉTÉS MULTILINGUES");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "");
+    log("INFO", "🔧 Configuration:");
+    log("INFO", "   • Correction automatique: " + (config.autoFix ? "OUI" : "NON"));
+    log("INFO", "   • Suppression des orphelines: " + (config.removeOrphans ? "OUI" : "NON"));
+    log("INFO", "");
+    log("INFO", "🔍 Validation en cours...");
+    log("INFO", "");
+
+    // Valider les éléments
+    $("element").each(function(elem) {
+        validateObject(elem);
+    });
+
+    // Valider les relations
+    $("relationship").each(function(rel) {
+        validateObject(rel);
+    });
+
+    // Valider les vues
+    model.views.each(function(view) {
+        validateObject(view);
+    });
+
+    log("INFO", "");
+    log("SUCCESS", "✅ Validation terminée !");
+}
+
+function displayResults() {
+    log("INFO", "");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "  RÉSULTATS DE LA VALIDATION");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "");
+    log("INFO", "📊 Statistiques:");
+    log("INFO", "   • Objets vérifiés: " + stats.objectsChecked);
+    log("INFO", "   • Erreurs trouvées: " + stats.errorsFound);
+    log("INFO", "   • Avertissements: " + stats.warningsFound);
+
+    if (config.autoFix) {
+        log("INFO", "   • Erreurs corrigées: " + stats.fixedErrors);
+    }
+
+    if (config.removeOrphans) {
+        log("INFO", "   • Propriétés orphelines supprimées: " + stats.orphansRemoved);
+    }
+
+    log("INFO", "");
+
+    // Afficher les erreurs
+    if (errors.length > 0) {
+        log("ERROR", "❌ ERREURS DÉTECTÉES (" + errors.length + "):");
+        log("INFO", "");
+
+        var maxDisplay = 20;
+        var displayed = 0;
+
+        errors.forEach(function(err) {
+            if (displayed >= maxDisplay) return;
+            log("ERROR", "• " + err.object + " [" + err.type + "]");
+            log("INFO", "  " + err.message);
+            displayed++;
+        });
+
+        if (errors.length > maxDisplay) {
+            log("INFO", "");
+            log("INFO", "... et " + (errors.length - maxDisplay) + " erreurs supplémentaires");
+        }
+
+        log("INFO", "");
+    }
+
+    // Afficher les avertissements
+    if (warnings.length > 0) {
+        log("WARNING", "⚠️  AVERTISSEMENTS (" + warnings.length + "):");
+        log("INFO", "");
+
+        var maxDisplay = 15;
+        var displayed = 0;
+
+        warnings.forEach(function(warn) {
+            if (displayed >= maxDisplay) return;
+            log("WARNING", "• " + warn.object + " [" + warn.type + "]");
+            log("INFO", "  " + warn.message);
+            displayed++;
+        });
+
+        if (warnings.length > maxDisplay) {
+            log("INFO", "");
+            log("INFO", "... et " + (warnings.length - maxDisplay) + " avertissements supplémentaires");
+        }
+
+        log("INFO", "");
+    }
+
+    // Recommandations
+    if (stats.errorsFound > 0 || stats.warningsFound > 0) {
+        log("INFO", "📝 Recommandations:");
+
+        if (stats.errorsFound > 0 && !config.autoFix) {
+            log("INFO", "   • Activer config.autoFix = true pour corriger automatiquement");
+        }
+
+        if (stats.warningsFound > 0) {
+            log("INFO", "   • Exécuter init_multilingual_properties.ajs pour réinitialiser");
+        }
+
+        log("INFO", "   • Vérifier le rapport: generate_multilingual_report.ajs");
+    } else {
+        log("SUCCESS", "🎉 Aucune erreur détectée ! Les propriétés multilingues sont valides.");
+    }
+
+    log("INFO", "");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+}
+
+// ============================================================================
+// EXÉCUTION
+// ============================================================================
+
+try {
+    performValidation();
+    displayResults();
+} catch (error) {
+    log("ERROR", "Erreur fatale: " + error);
+}

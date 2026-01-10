@@ -1,0 +1,337 @@
+/*
+ * Chain of Verification (CoV) Engine - Constitutional Principle #4
+ *
+ * Anti-hallucination mechanism that executes a verification loop before
+ * proceeding to the next TOGAF ADM phase.
+ *
+ * For each phase deliverable, the CoV engine asks:
+ * 1. "What evidence from previous phases justifies this entity?"
+ * 2. "Is there a conflict with a principle or driver?"
+ * 3. "What metric, if below/above threshold, would invalidate this design?"
+ * 4. If ≥1 negative answer → generate REVISED version with [REVISED-CoV] tag
+ *
+ * This ensures architectural decisions are evidence-based, not assumptions.
+ */
+
+console.log("╔" + "═".repeat(68) + "╗");
+console.log("║ CHAIN OF VERIFICATION (CoV) ENGINE".padEnd(69) + "║");
+console.log("║ Constitutional AI - Principe #4 (Anti-Hallucination)".padEnd(69) + "║");
+console.log("╚" + "═".repeat(68) + "╝");
+console.log("");
+
+var model = $("model").first();
+
+if (!model) {
+    console.log("❌ Aucun modèle trouvé.");
+} else {
+    console.log("Modèle: " + model.name);
+    console.log("");
+
+    // ========================================
+    // CONFIGURATION
+    // ========================================
+
+    var config = {
+        // Phases TOGAF à vérifier
+        phases: ["A", "B", "C", "D", "E"],
+
+        // Mapping phases → éléments ArchiMate attendus
+        phaseElements: {
+            "A": ["driver", "goal", "principle", "requirement"],
+            "B": ["business-actor", "business-role", "business-service", "business-process"],
+            "C": ["application-component", "application-service", "application-interface"],
+            "D": ["node", "device", "system-software", "technology-service"],
+            "E": [] // Pas d'éléments spécifiques (opportunités = analyse)
+        }
+    };
+
+    // ========================================
+    // EXÉCUTION DU COV PAR PHASE
+    // ========================================
+
+    console.log("═".repeat(70));
+    console.log("EXÉCUTION CHAIN OF VERIFICATION");
+    console.log("═".repeat(70));
+    console.log("");
+
+    var globalIssues = [];
+
+    config.phases.forEach(function(phase) {
+        console.log("┌─ PHASE " + phase + " ─────────────────────────────────────────────────────┐");
+        console.log("│".padEnd(69) + "│");
+
+        var phaseIssues = verifyPhase(phase);
+
+        if (phaseIssues.length === 0) {
+            console.log("│ ✅ VALIDATION RÉUSSIE".padEnd(69) + "│");
+            console.log("│    Tous les éléments sont justifiés et cohérents".padEnd(69) + "│");
+        } else {
+            console.log("│ ⚠️  PROBLÈMES DÉTECTÉS: " + phaseIssues.length.toString().padEnd(43) + "│");
+            phaseIssues.forEach(function(issue) {
+                console.log("│".padEnd(69) + "│");
+                console.log("│ • Élément: " + truncate(issue.element, 55).padEnd(56) + "│");
+                console.log("│   Question: " + truncate(issue.question, 54).padEnd(55) + "│");
+                console.log("│   Problème: " + truncate(issue.problem, 54).padEnd(55) + "│");
+                console.log("│   Action: " + truncate(issue.action, 56).padEnd(57) + "│");
+            });
+
+            globalIssues = globalIssues.concat(phaseIssues);
+        }
+
+        console.log("│".padEnd(69) + "│");
+        console.log("└────────────────────────────────────────────────────────────────┘");
+        console.log("");
+    });
+
+    // ========================================
+    // RAPPORT GLOBAL
+    // ========================================
+
+    console.log("═".repeat(70));
+    console.log("RAPPORT GLOBAL CoV");
+    console.log("═".repeat(70));
+    console.log("");
+
+    console.log("Phases vérifiées: " + config.phases.join(", "));
+    console.log("Total problèmes détectés: " + globalIssues.length);
+    console.log("");
+
+    if (globalIssues.length === 0) {
+        console.log("✅ VALIDATION COMPLÈTE RÉUSSIE");
+        console.log("");
+        console.log("Le modèle respecte tous les principes constitutionnels:");
+        console.log("  • Traçabilité sémantique TOGAF");
+        console.log("  • Falsifiabilité opérationnelle");
+        console.log("  • Cohérence inter-phases");
+        console.log("");
+        console.log("🎯 Le modèle est PRÊT pour la phase suivante de l'ADM");
+
+    } else {
+        console.log("⚠️  RÉVISION REQUISE");
+        console.log("");
+        console.log("Actions correctives par priorité:");
+        console.log("");
+
+        // Trier par priorité (Phase A > B > C > D > E)
+        globalIssues.sort(function(a, b) {
+            var phaseOrder = ["A", "B", "C", "D", "E"];
+            return phaseOrder.indexOf(a.phase) - phaseOrder.indexOf(b.phase);
+        });
+
+        var priorities = { HIGH: [], MEDIUM: [], LOW: [] };
+
+        globalIssues.forEach(function(issue) {
+            if (issue.phase === "A" || issue.phase === "B") {
+                priorities.HIGH.push(issue);
+            } else if (issue.phase === "C" || issue.phase === "D") {
+                priorities.MEDIUM.push(issue);
+            } else {
+                priorities.LOW.push(issue);
+            }
+        });
+
+        if (priorities.HIGH.length > 0) {
+            console.log("🔴 PRIORITÉ HAUTE (Phases A/B - Motivation/Business):");
+            priorities.HIGH.forEach(function(issue, index) {
+                console.log("  " + (index + 1) + ". [Phase " + issue.phase + "] " + issue.element);
+                console.log("     → " + issue.action);
+            });
+            console.log("");
+        }
+
+        if (priorities.MEDIUM.length > 0) {
+            console.log("🟡 PRIORITÉ MOYENNE (Phases C/D - Application/Tech):");
+            priorities.MEDIUM.forEach(function(issue, index) {
+                console.log("  " + (index + 1) + ". [Phase " + issue.phase + "] " + issue.element);
+                console.log("     → " + issue.action);
+            });
+            console.log("");
+        }
+
+        if (priorities.LOW.length > 0) {
+            console.log("🟢 PRIORITÉ BASSE (Phase E - Opportunités):");
+            priorities.LOW.forEach(function(issue, index) {
+                console.log("  " + (index + 1) + ". [Phase " + issue.phase + "] " + issue.element);
+                console.log("     → " + issue.action);
+            });
+            console.log("");
+        }
+
+        console.log("⛔ Le modèle n'est PAS prêt pour la suite de l'ADM");
+        console.log("   Corriger les problèmes détectés avant de continuer.");
+    }
+
+    console.log("");
+    console.log("═".repeat(70));
+    console.log("✓ Vérification CoV terminée");
+    console.log("═".repeat(70));
+}
+
+// ========================================
+// FONCTIONS DE VÉRIFICATION
+// ========================================
+
+function verifyPhase(phase) {
+    var issues = [];
+    var elementTypes = config.phaseElements[phase];
+
+    elementTypes.forEach(function(type) {
+        $(type).each(function(elem) {
+            // Question 1: Justification par phases précédentes
+            var q1 = verifyJustification(elem, phase);
+            if (!q1.valid) {
+                issues.push({
+                    phase: phase,
+                    element: elem.name,
+                    question: "Justification par phases précédentes?",
+                    problem: q1.problem,
+                    action: q1.action
+                });
+            }
+
+            // Question 2: Conflit avec principes/drivers
+            var q2 = verifyNoConflict(elem, phase);
+            if (!q2.valid) {
+                issues.push({
+                    phase: phase,
+                    element: elem.name,
+                    question: "Conflit avec principe/driver?",
+                    problem: q2.problem,
+                    action: q2.action
+                });
+            }
+
+            // Question 3: Métrique de falsifiabilité
+            var q3 = verifyFalsifiability(elem, phase);
+            if (!q3.valid) {
+                issues.push({
+                    phase: phase,
+                    element: elem.name,
+                    question: "Condition de falsifiabilité définie?",
+                    problem: q3.problem,
+                    action: q3.action
+                });
+            }
+        });
+    });
+
+    return issues;
+}
+
+function verifyJustification(element, phase) {
+    // Vérifier qu'il existe une chaîne de relations vers Motivation Layer
+
+    if (phase === "A") {
+        // Phase A = Motivation Layer, toujours justifié
+        return { valid: true };
+    }
+
+    // Vérifier relations
+    var hasMotivationLink = false;
+    var visited = [];
+
+    function traverse(elem, depth) {
+        if (depth > 5) return false;
+        if (visited.indexOf(elem.id) !== -1) return false;
+        visited.push(elem.id);
+
+        // Check if elem is in Motivation Layer
+        var isMotivation = (
+            elem.type === "driver" ||
+            elem.type === "goal" ||
+            elem.type === "principle" ||
+            elem.type === "requirement"
+        );
+
+        if (isMotivation) return true;
+
+        // Check relations
+        var found = false;
+        $(elem).inRels().each(function(rel) {
+            if (traverse(rel.source, depth + 1)) {
+                found = true;
+            }
+        });
+        $(elem).outRels().each(function(rel) {
+            if (traverse(rel.target, depth + 1)) {
+                found = true;
+            }
+        });
+
+        return found;
+    }
+
+    hasMotivationLink = traverse(element, 0);
+
+    if (!hasMotivationLink) {
+        return {
+            valid: false,
+            problem: "Aucune relation vers Motivation Layer détectée",
+            action: "Ajouter relation vers Driver/Goal/Principle"
+        };
+    }
+
+    return { valid: true };
+}
+
+function verifyNoConflict(element, phase) {
+    // Vérifier que l'élément ne contredit pas un principe
+
+    var principles = [];
+    $("principle").each(function(p) { principles.push(p); });
+
+    // Analyse simplifiée : vérifier documentation pour mots-clés conflictuels
+    var conflicts = [];
+
+    principles.forEach(function(principle) {
+        // Ex: Si principe = "Souveraineté", vérifier que composant n'est pas US
+        if (principle.name.toUpperCase().indexOf("SOUVERAIN") !== -1 ||
+            principle.name.toUpperCase().indexOf("RGPD") !== -1) {
+
+            var juridiction = element.prop("CP_Juridiction");
+            if (juridiction === "US" || juridiction === "CN") {
+                conflicts.push("Principe '" + principle.name + "' vs Juridiction " + juridiction);
+            }
+        }
+    });
+
+    if (conflicts.length > 0) {
+        return {
+            valid: false,
+            problem: conflicts.join("; "),
+            action: "Revoir choix vendor ou ajouter mitigation (multi-cloud, etc.)"
+        };
+    }
+
+    return { valid: true };
+}
+
+function verifyFalsifiability(element, phase) {
+    // Vérifier qu'une condition de falsifiabilité est définie
+
+    if (phase === "A") {
+        // Motivation Layer n'a pas besoin de falsifiabilité (concepts stratégiques)
+        return { valid: true };
+    }
+
+    var hasFalsifiability = (
+        element.prop("Falsifiability_Condition_1") ||
+        element.prop("Falsifiability_Metric")
+    );
+
+    if (!hasFalsifiability) {
+        return {
+            valid: false,
+            problem: "Aucune condition de falsifiabilité définie",
+            action: "Exécuter generate_falsifiability_conditions.ajs"
+        };
+    }
+
+    return { valid: true };
+}
+
+function truncate(str, maxLen) {
+    if (!str) return "";
+    if (str.length <= maxLen) return str;
+    return str.substring(0, maxLen - 3) + "...";
+}

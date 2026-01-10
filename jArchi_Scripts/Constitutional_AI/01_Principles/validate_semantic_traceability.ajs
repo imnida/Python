@@ -1,0 +1,371 @@
+/*
+ * Validate Semantic Traceability (Constitutional Principle #1)
+ *
+ * TOGAF Principle: Every technical decision (Phase D) must be explicitly
+ * linked via "realized by" or "serves" relationship to Motivation Layer
+ * (Driver, Goal, Principle - Phases A/B).
+ *
+ * NO ORPHAN ENTITIES ALLOWED.
+ *
+ * This script validates:
+ * 1. All Technology/Application elements are traceable to Business Layer
+ * 2. All Business elements are traceable to Motivation Layer
+ * 3. Complete semantic chain exists (Motivation → Business → Application → Technology)
+ *
+ * Output:
+ * - List of orphan elements (not traceable to Motivation)
+ * - Traceability report by layer
+ * - Recommendations for missing relationships
+ */
+
+console.log("╔" + "═".repeat(68) + "╗");
+console.log("║ VALIDATION: TRAÇABILITÉ SÉMANTIQUE TOGAF".padEnd(69) + "║");
+console.log("║ Constitutional AI - Principe #1".padEnd(69) + "║");
+console.log("╚" + "═".repeat(68) + "╝");
+console.log("");
+
+var model = $("model").first();
+
+if (!model) {
+    console.log("❌ Aucun modèle trouvé.");
+} else {
+    console.log("Modèle: " + model.name);
+    console.log("");
+
+    // ========================================
+    // CONFIGURATION
+    // ========================================
+
+    var config = {
+        // Relations considérées comme "traçabilité"
+        traceabilityRelations: [
+            "realization-relationship",
+            "serving-relationship",
+            "assignment-relationship",
+            "influence-relationship",
+            "association-relationship"
+        ],
+
+        // Profondeur maximale de recherche
+        maxDepth: 10
+    };
+
+    // ========================================
+    // COLLECTE DES ÉLÉMENTS PAR COUCHE
+    // ========================================
+
+    var layers = {
+        motivation: [],
+        business: [],
+        application: [],
+        technology: []
+    };
+
+    // Motivation Layer
+    $("principle").each(function(e) { layers.motivation.push(e); });
+    $("goal").each(function(e) { layers.motivation.push(e); });
+    $("driver").each(function(e) { layers.motivation.push(e); });
+    $("requirement").each(function(e) { layers.motivation.push(e); });
+    $("constraint").each(function(e) { layers.motivation.push(e); });
+    $("meaning").each(function(e) { layers.motivation.push(e); });
+    $("value").each(function(e) { layers.motivation.push(e); });
+
+    // Business Layer
+    $("business-actor").each(function(e) { layers.business.push(e); });
+    $("business-role").each(function(e) { layers.business.push(e); });
+    $("business-collaboration").each(function(e) { layers.business.push(e); });
+    $("business-interface").each(function(e) { layers.business.push(e); });
+    $("business-process").each(function(e) { layers.business.push(e); });
+    $("business-function").each(function(e) { layers.business.push(e); });
+    $("business-interaction").each(function(e) { layers.business.push(e); });
+    $("business-event").each(function(e) { layers.business.push(e); });
+    $("business-service").each(function(e) { layers.business.push(e); });
+    $("business-object").each(function(e) { layers.business.push(e); });
+    $("contract").each(function(e) { layers.business.push(e); });
+    $("representation").each(function(e) { layers.business.push(e); });
+    $("product").each(function(e) { layers.business.push(e); });
+
+    // Application Layer
+    $("application-component").each(function(e) { layers.application.push(e); });
+    $("application-collaboration").each(function(e) { layers.application.push(e); });
+    $("application-interface").each(function(e) { layers.application.push(e); });
+    $("application-function").each(function(e) { layers.application.push(e); });
+    $("application-interaction").each(function(e) { layers.application.push(e); });
+    $("application-process").each(function(e) { layers.application.push(e); });
+    $("application-event").each(function(e) { layers.application.push(e); });
+    $("application-service").each(function(e) { layers.application.push(e); });
+    $("data-object").each(function(e) { layers.application.push(e); });
+
+    // Technology Layer
+    $("node").each(function(e) { layers.technology.push(e); });
+    $("device").each(function(e) { layers.technology.push(e); });
+    $("system-software").each(function(e) { layers.technology.push(e); });
+    $("technology-collaboration").each(function(e) { layers.technology.push(e); });
+    $("technology-interface").each(function(e) { layers.technology.push(e); });
+    $("path").each(function(e) { layers.technology.push(e); });
+    $("communication-network").each(function(e) { layers.technology.push(e); });
+    $("technology-function").each(function(e) { layers.technology.push(e); });
+    $("technology-process").each(function(e) { layers.technology.push(e); });
+    $("technology-interaction").each(function(e) { layers.technology.push(e); });
+    $("technology-event").each(function(e) { layers.technology.push(e); });
+    $("technology-service").each(function(e) { layers.technology.push(e); });
+    $("artifact").each(function(e) { layers.technology.push(e); });
+
+    console.log("Éléments par couche:");
+    console.log("  Motivation: " + layers.motivation.length);
+    console.log("  Business: " + layers.business.length);
+    console.log("  Application: " + layers.application.length);
+    console.log("  Technology: " + layers.technology.length);
+    console.log("");
+
+    // ========================================
+    // FONCTION: TRAÇABILITÉ VERS MOTIVATION
+    // ========================================
+
+    function isTraceableToMotivation(element, visited) {
+        if (!visited) visited = [];
+
+        // Éviter cycles infinis
+        if (visited.indexOf(element.id) !== -1) {
+            return { traceable: false, path: [], reason: "Cycle détecté" };
+        }
+
+        visited.push(element.id);
+
+        // Vérifier si l'élément est déjà dans Motivation Layer
+        if (layers.motivation.indexOf(element) !== -1) {
+            return { traceable: true, path: [element.name], reason: "Motivation Layer" };
+        }
+
+        // Profondeur maximale atteinte
+        if (visited.length > config.maxDepth) {
+            return { traceable: false, path: [], reason: "Profondeur max atteinte" };
+        }
+
+        // Parcourir les relations entrantes et sortantes
+        var allRels = [];
+        $(element).inRels().each(function(rel) {
+            if (config.traceabilityRelations.indexOf(rel.type) !== -1) {
+                allRels.push({ rel: rel, from: rel.source });
+            }
+        });
+        $(element).outRels().each(function(rel) {
+            if (config.traceabilityRelations.indexOf(rel.type) !== -1) {
+                allRels.push({ rel: rel, from: rel.target });
+            }
+        });
+
+        // Essayer de tracer via chaque relation
+        for (var i = 0; i < allRels.length; i++) {
+            var result = isTraceableToMotivation(allRels[i].from, visited.slice());
+            if (result.traceable) {
+                result.path.unshift(element.name);
+                return result;
+            }
+        }
+
+        return { traceable: false, path: [], reason: "Aucune relation de traçabilité" };
+    }
+
+    // ========================================
+    // ANALYSE DE TRAÇABILITÉ
+    // ========================================
+
+    console.log("═".repeat(70));
+    console.log("ANALYSE DE TRAÇABILITÉ");
+    console.log("═".repeat(70));
+    console.log("");
+
+    var results = {
+        technology: { traceable: [], orphans: [] },
+        application: { traceable: [], orphans: [] },
+        business: { traceable: [], orphans: [] }
+    };
+
+    // Vérifier Technology Layer
+    console.log("1. Validation Technology Layer → Motivation");
+    console.log("-".repeat(70));
+
+    layers.technology.forEach(function(elem) {
+        var trace = isTraceableToMotivation(elem, []);
+        if (trace.traceable) {
+            results.technology.traceable.push({ element: elem, path: trace.path });
+        } else {
+            results.technology.orphans.push({ element: elem, reason: trace.reason });
+            console.log("  ❌ " + elem.name + " (" + elem.type + ")");
+            console.log("     Raison: " + trace.reason);
+        }
+    });
+
+    if (results.technology.orphans.length === 0) {
+        console.log("  ✅ Tous les éléments Technology sont traçables");
+    } else {
+        console.log("  ⚠️  " + results.technology.orphans.length + " élément(s) orphelin(s)");
+    }
+
+    console.log("");
+
+    // Vérifier Application Layer
+    console.log("2. Validation Application Layer → Motivation");
+    console.log("-".repeat(70));
+
+    layers.application.forEach(function(elem) {
+        var trace = isTraceableToMotivation(elem, []);
+        if (trace.traceable) {
+            results.application.traceable.push({ element: elem, path: trace.path });
+        } else {
+            results.application.orphans.push({ element: elem, reason: trace.reason });
+            console.log("  ❌ " + elem.name + " (" + elem.type + ")");
+            console.log("     Raison: " + trace.reason);
+        }
+    });
+
+    if (results.application.orphans.length === 0) {
+        console.log("  ✅ Tous les éléments Application sont traçables");
+    } else {
+        console.log("  ⚠️  " + results.application.orphans.length + " élément(s) orphelin(s)");
+    }
+
+    console.log("");
+
+    // Vérifier Business Layer
+    console.log("3. Validation Business Layer → Motivation");
+    console.log("-".repeat(70));
+
+    layers.business.forEach(function(elem) {
+        var trace = isTraceableToMotivation(elem, []);
+        if (trace.traceable) {
+            results.business.traceable.push({ element: elem, path: trace.path });
+        } else {
+            results.business.orphans.push({ element: elem, reason: trace.reason });
+            console.log("  ❌ " + elem.name + " (" + elem.type + ")");
+            console.log("     Raison: " + trace.reason);
+        }
+    });
+
+    if (results.business.orphans.length === 0) {
+        console.log("  ✅ Tous les éléments Business sont traçables");
+    } else {
+        console.log("  ⚠️  " + results.business.orphans.length + " élément(s) orphelin(s)");
+    }
+
+    console.log("");
+
+    // ========================================
+    // STATISTIQUES GLOBALES
+    // ========================================
+
+    console.log("═".repeat(70));
+    console.log("STATISTIQUES GLOBALES");
+    console.log("═".repeat(70));
+    console.log("");
+
+    var totalElements = layers.technology.length + layers.application.length + layers.business.length;
+    var totalOrphans = results.technology.orphans.length +
+                       results.application.orphans.length +
+                       results.business.orphans.length;
+    var totalTraceable = totalElements - totalOrphans;
+
+    console.log("Total éléments analysés: " + totalElements);
+    console.log("  Traçables: " + totalTraceable + " (" + ((totalTraceable / totalElements) * 100).toFixed(1) + "%)");
+    console.log("  Orphelins: " + totalOrphans + " (" + ((totalOrphans / totalElements) * 100).toFixed(1) + "%)");
+    console.log("");
+
+    // Verdict
+    var traceabilityScore = (totalTraceable / totalElements) * 100;
+
+    if (traceabilityScore === 100) {
+        console.log("✅ VALIDATION RÉUSSIE");
+        console.log("   Principe Constitutionnel #1 respecté à 100%");
+    } else if (traceabilityScore >= 90) {
+        console.log("⚠️  VALIDATION PARTIELLE");
+        console.log("   Score: " + traceabilityScore.toFixed(1) + "%");
+        console.log("   Action recommandée: Corriger les " + totalOrphans + " orphelin(s)");
+    } else {
+        console.log("❌ VALIDATION ÉCHOUÉE");
+        console.log("   Score: " + traceabilityScore.toFixed(1) + "%");
+        console.log("   Action requise: Révision majeure de la traçabilité");
+    }
+
+    console.log("");
+
+    // ========================================
+    // RECOMMANDATIONS
+    // ========================================
+
+    if (totalOrphans > 0) {
+        console.log("═".repeat(70));
+        console.log("RECOMMANDATIONS POUR CORRECTION");
+        console.log("═".repeat(70));
+        console.log("");
+
+        console.log("Pour chaque élément orphelin, ajouter une relation vers:");
+        console.log("");
+        console.log("Technology → Application:");
+        console.log("  • realization-relationship (Technology réalise Application Service)");
+        console.log("  • serving-relationship (Technology sert Application Component)");
+        console.log("");
+        console.log("Application → Business:");
+        console.log("  • realization-relationship (Application réalise Business Service)");
+        console.log("  • serving-relationship (Application sert Business Actor/Role)");
+        console.log("");
+        console.log("Business → Motivation:");
+        console.log("  • influence-relationship (Driver influence Business)");
+        console.log("  • association-relationship (Goal associé à Business)");
+        console.log("");
+
+        // Exemples concrets d'orphelins
+        if (results.technology.orphans.length > 0) {
+            console.log("Exemples Technology orphelins:");
+            results.technology.orphans.slice(0, 3).forEach(function(item) {
+                console.log("  • " + item.element.name + " → Ajouter relation vers Application Layer");
+            });
+            console.log("");
+        }
+
+        if (results.application.orphans.length > 0) {
+            console.log("Exemples Application orphelins:");
+            results.application.orphans.slice(0, 3).forEach(function(item) {
+                console.log("  • " + item.element.name + " → Ajouter relation vers Business Layer");
+            });
+            console.log("");
+        }
+
+        if (results.business.orphans.length > 0) {
+            console.log("Exemples Business orphelins:");
+            results.business.orphans.slice(0, 3).forEach(function(item) {
+                console.log("  • " + item.element.name + " → Ajouter relation vers Motivation Layer");
+            });
+            console.log("");
+        }
+    }
+
+    // ========================================
+    // EXEMPLES DE CHAÎNES DE TRAÇABILITÉ
+    // ========================================
+
+    if (totalTraceable > 0) {
+        console.log("═".repeat(70));
+        console.log("EXEMPLES DE CHAÎNES DE TRAÇABILITÉ VALIDES");
+        console.log("═".repeat(70));
+        console.log("");
+
+        // Afficher 3 exemples de chaînes complètes
+        var examples = [];
+
+        results.technology.traceable.forEach(function(item) {
+            if (examples.length < 3) {
+                examples.push(item);
+            }
+        });
+
+        examples.forEach(function(item, index) {
+            console.log((index + 1) + ". " + item.path.join(" → "));
+            console.log("");
+        });
+    }
+
+    console.log("═".repeat(70));
+    console.log("✓ Validation terminée");
+    console.log("═".repeat(70));
+}

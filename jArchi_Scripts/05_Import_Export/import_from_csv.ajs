@@ -47,7 +47,7 @@ Payment Service,application-component,Payment processing,In Development,Finance 
         var documentation = values[2] ? values[2].trim() : "";
 
         try {
-            var element = model.createObject(type, name);
+            var element = model.createElement(type, name);
 
             if (documentation) {
                 element.documentation = documentation;

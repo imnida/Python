@@ -14,32 +14,32 @@ if (!model) {
     console.log("No model found. Please open a model first.");
 } else {
     // Create Business Layer elements
-    var businessActor = model.createObject("business-actor", "Customer");
-    var businessRole = model.createObject("business-role", "Sales Manager");
-    var businessProcess = model.createObject("business-process", "Order Processing");
-    var businessService = model.createObject("business-service", "Order Service");
+    var businessActor = model.createElement("business-actor", "Customer");
+    var businessRole = model.createElement("business-role", "Sales Manager");
+    var businessProcess = model.createElement("business-process", "Order Processing");
+    var businessService = model.createElement("business-service", "Order Service");
 
     // Create Application Layer elements
-    var appComponent = model.createObject("application-component", "CRM System");
-    var appService = model.createObject("application-service", "Customer Data Service");
-    var appInterface = model.createObject("application-interface", "REST API");
-    var dataObject = model.createObject("data-object", "Customer Record");
+    var appComponent = model.createElement("application-component", "CRM System");
+    var appService = model.createElement("application-service", "Customer Data Service");
+    var appInterface = model.createElement("application-interface", "REST API");
+    var dataObject = model.createElement("data-object", "Customer Record");
 
     // Create Technology Layer elements
-    var node = model.createObject("node", "Application Server");
-    var device = model.createObject("device", "Web Server");
-    var systemSoftware = model.createObject("system-software", "Database Server");
-    var artifact = model.createObject("artifact", "Configuration File");
+    var node = model.createElement("node", "Application Server");
+    var device = model.createElement("device", "Web Server");
+    var systemSoftware = model.createElement("system-software", "Database Server");
+    var artifact = model.createElement("artifact", "Configuration File");
 
     // Create Motivation elements
-    var stakeholder = model.createObject("stakeholder", "Board of Directors");
-    var driver = model.createObject("driver", "Increase Revenue");
-    var goal = model.createObject("goal", "Improve Customer Satisfaction");
-    var requirement = model.createObject("requirement", "System must be available 24/7");
+    var stakeholder = model.createElement("stakeholder", "Board of Directors");
+    var driver = model.createElement("driver", "Increase Revenue");
+    var goal = model.createElement("goal", "Improve Customer Satisfaction");
+    var requirement = model.createElement("requirement", "System must be available 24/7");
 
     // Create Implementation elements
-    var workPackage = model.createObject("work-package", "CRM Implementation");
-    var deliverable = model.createObject("deliverable", "User Documentation");
+    var workPackage = model.createElement("work-package", "CRM Implementation");
+    var deliverable = model.createElement("deliverable", "User Documentation");
 
     console.log("✓ Elements created successfully!");
     console.log("Business Layer: " + businessActor.name + ", " + businessRole.name);

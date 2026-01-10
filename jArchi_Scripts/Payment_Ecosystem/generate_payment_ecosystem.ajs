@@ -51,19 +51,19 @@ if (!model) {
 
     console.log("1. Création des Principes Stratégiques...");
 
-    elements.principles.trust = model.createObject("principle", "Ligne de confiance (Trust)");
+    elements.principles.trust = model.createElement("principle", "Ligne de confiance (Trust)");
     elements.principles.trust.documentation = "Principe fondamental de confiance dans l'écosystème de paiement";
 
-    elements.principles.invisibility = model.createObject("principle", "Invisibilité des paiements");
+    elements.principles.invisibility = model.createElement("principle", "Invisibilité des paiements");
     elements.principles.invisibility.documentation = "Les paiements doivent être transparents et frictionless pour l'utilisateur final";
 
-    elements.requirements.observability = model.createObject("requirement", "Observabilité & Traçabilité");
+    elements.requirements.observability = model.createElement("requirement", "Observabilité & Traçabilité");
     elements.requirements.observability.documentation = "Capacité à observer et tracer toutes les transactions pour la conformité et l'audit";
 
-    elements.businessObjects.mandat = model.createObject("business-object", "Mandat");
+    elements.businessObjects.mandat = model.createElement("business-object", "Mandat");
     elements.businessObjects.mandat.documentation = "Autorisation donnée par le client pour effectuer des paiements en son nom";
 
-    elements.businessObjects.intent = model.createObject("business-object", "Intent");
+    elements.businessObjects.intent = model.createElement("business-object", "Intent");
     elements.businessObjects.intent.documentation = "Intention de paiement exprimée par le client (via voix, texte, etc.)";
 
     console.log("  ✓ " + Object.keys(elements.principles).length + " principes créés");
@@ -76,23 +76,23 @@ if (!model) {
 
     console.log("\n2. Création des Tiers de Confiance...");
 
-    elements.businessActors.scheme = model.createObject("business-actor", "Scheme");
+    elements.businessActors.scheme = model.createElement("business-actor", "Scheme");
     elements.businessActors.scheme.documentation = "Organismes de schémas de paiement (Visa, Mastercard, EPI)";
     elements.businessActors.scheme.prop("CP_Type", "External");
 
-    elements.businessActors.acteurPublic = model.createObject("business-actor", "Acteurs Publics");
+    elements.businessActors.acteurPublic = model.createElement("business-actor", "Acteurs Publics");
     elements.businessActors.acteurPublic.documentation = "Institutions publiques (BCE, Banque de France, régulateurs)";
 
-    elements.businessActors.acteurPrive = model.createObject("business-actor", "Acteurs Privés");
+    elements.businessActors.acteurPrive = model.createElement("business-actor", "Acteurs Privés");
     elements.businessActors.acteurPrive.documentation = "Acteurs privés de l'écosystème (Paytech, Bigtech, PSP)";
 
-    elements.businessActors.eudi = model.createObject("business-actor", "EUDI Wallet");
+    elements.businessActors.eudi = model.createElement("business-actor", "EUDI Wallet");
     elements.businessActors.eudi.documentation = "European Digital Identity - Portefeuille d'identité numérique européen";
     elements.businessActors.eudi.prop("CP_Type", "External");
     elements.businessActors.eudi.prop("CP_Vendor", "EU Consortium");
     elements.businessActors.eudi.prop("CP_Juridiction", "EU");
 
-    elements.businessActors.banques = model.createObject("business-actor", "Banques");
+    elements.businessActors.banques = model.createElement("business-actor", "Banques");
     elements.businessActors.banques.documentation = "Établissements bancaires traditionnels";
 
     console.log("  ✓ " + Object.keys(elements.businessActors).length + " acteurs métier créés");
@@ -103,16 +103,16 @@ if (!model) {
 
     console.log("\n3. Création des Rôles Clients...");
 
-    elements.businessRoles.particulier = model.createObject("business-role", "Particulier");
+    elements.businessRoles.particulier = model.createElement("business-role", "Particulier");
     elements.businessRoles.particulier.documentation = "Client particulier (B2C)";
 
-    elements.businessRoles.commercant = model.createObject("business-role", "Commerçant");
+    elements.businessRoles.commercant = model.createElement("business-role", "Commerçant");
     elements.businessRoles.commercant.documentation = "Commerçant acceptant les paiements";
 
-    elements.businessRoles.pro = model.createObject("business-role", "Professionnel");
+    elements.businessRoles.pro = model.createElement("business-role", "Professionnel");
     elements.businessRoles.pro.documentation = "Professionnel / TPE / PME";
 
-    elements.businessRoles.eti = model.createObject("business-role", "ETI");
+    elements.businessRoles.eti = model.createElement("business-role", "ETI");
     elements.businessRoles.eti.documentation = "Entreprise de Taille Intermédiaire";
 
     console.log("  ✓ " + Object.keys(elements.businessRoles).length + " rôles métier créés");
@@ -123,19 +123,19 @@ if (!model) {
 
     console.log("\n4. Création des Canaux...");
 
-    elements.applicationInterfaces.canalApp = model.createObject("application-interface", "Canal App Mobile");
+    elements.applicationInterfaces.canalApp = model.createElement("application-interface", "Canal App Mobile");
     elements.applicationInterfaces.canalApp.documentation = "Application mobile native (iOS/Android)";
 
-    elements.applicationInterfaces.canalWeb = model.createObject("application-interface", "Canal Web");
+    elements.applicationInterfaces.canalWeb = model.createElement("application-interface", "Canal Web");
     elements.applicationInterfaces.canalWeb.documentation = "Interface web (navigateur)";
 
-    elements.applicationInterfaces.canalB2B = model.createObject("application-interface", "Canal B2B");
+    elements.applicationInterfaces.canalB2B = model.createElement("application-interface", "Canal B2B");
     elements.applicationInterfaces.canalB2B.documentation = "API B2B pour intégrations entreprises";
 
-    elements.applicationInterfaces.canalIA = model.createObject("application-interface", "Canal IA Natif");
+    elements.applicationInterfaces.canalIA = model.createElement("application-interface", "Canal IA Natif");
     elements.applicationInterfaces.canalIA.documentation = "Interface conversationnelle IA (voix, chat)";
 
-    elements.applicationInterfaces.autresCanaux = model.createObject("application-interface", "Autres Canaux");
+    elements.applicationInterfaces.autresCanaux = model.createElement("application-interface", "Autres Canaux");
     elements.applicationInterfaces.autresCanaux.documentation = "Autres canaux (POS physique, IoT, etc.)";
 
     console.log("  ✓ " + Object.keys(elements.applicationInterfaces).length + " canaux créés");
@@ -146,18 +146,18 @@ if (!model) {
 
     console.log("\n5. Création de l'Infrastructure Wholesale...");
 
-    elements.businessActors.paytech = model.createObject("business-actor", "Paytech");
+    elements.businessActors.paytech = model.createElement("business-actor", "Paytech");
     elements.businessActors.paytech.documentation = "Fintechs spécialisées paiement (Stripe, Adyen, etc.)";
     elements.businessActors.paytech.prop("CP_Type", "External");
 
-    elements.businessActors.bigtech = model.createObject("business-actor", "Bigtech");
+    elements.businessActors.bigtech = model.createElement("business-actor", "Bigtech");
     elements.businessActors.bigtech.documentation = "GAFAM et grands acteurs tech (Apple, Google, Amazon)";
     elements.businessActors.bigtech.prop("CP_Type", "External");
 
-    elements.businessActors.psp = model.createObject("business-actor", "PSP (Payment Service Provider)");
+    elements.businessActors.psp = model.createElement("business-actor", "PSP (Payment Service Provider)");
     elements.businessActors.psp.documentation = "Prestataires de services de paiement";
 
-    elements.businessActors.regulateurs = model.createObject("business-actor", "Régulateurs");
+    elements.businessActors.regulateurs = model.createElement("business-actor", "Régulateurs");
     elements.businessActors.regulateurs.documentation = "Autorités de régulation (ACPR, BCE, EBA)";
 
     console.log("  ✓ Infrastructure wholesale créée");
@@ -169,10 +169,10 @@ if (!model) {
     console.log("\n6. Création des Rails de Paiement...");
 
     // Carte v1 (schéma traditionnel)
-    elements.businessServices.acquisitionMonetique = model.createObject("business-service", "Acquisition Monétique");
+    elements.businessServices.acquisitionMonetique = model.createElement("business-service", "Acquisition Monétique");
     elements.businessServices.acquisitionMonetique.documentation = "Service d'acquisition des transactions carte (côté commerçant)";
 
-    elements.businessActors.visaMC = model.createObject("business-actor", "Visa/Mastercard");
+    elements.businessActors.visaMC = model.createElement("business-actor", "Visa/Mastercard");
     elements.businessActors.visaMC.documentation = "Schémas de paiement internationaux dominants";
     elements.businessActors.visaMC.prop("CP_Type", "External");
     elements.businessActors.visaMC.prop("CP_Vendor", "Visa/Mastercard");
@@ -184,14 +184,14 @@ if (!model) {
     elements.businessActors.visaMC.prop("CP_Opacite", "60");
     elements.businessActors.visaMC.prop("CP_Extraterritorialite", "95");
 
-    elements.businessServices.emission = model.createObject("business-service", "Émission Carte");
+    elements.businessServices.emission = model.createElement("business-service", "Émission Carte");
     elements.businessServices.emission.documentation = "Service d'émission de cartes bancaires (côté client)";
 
     // Carte v2 (EPI)
-    elements.businessServices.acceptorPSP = model.createObject("business-service", "Acceptor PSP");
+    elements.businessServices.acceptorPSP = model.createElement("business-service", "Acceptor PSP");
     elements.businessServices.acceptorPSP.documentation = "PSP côté commerçant dans le modèle EPI";
 
-    elements.businessActors.epi = model.createObject("business-actor", "EPI (European Payment Initiative)");
+    elements.businessActors.epi = model.createElement("business-actor", "EPI (European Payment Initiative)");
     elements.businessActors.epi.documentation = "Schéma de paiement européen souverain";
     elements.businessActors.epi.prop("CP_Type", "External");
     elements.businessActors.epi.prop("CP_Vendor", "EPI Consortium");
@@ -203,30 +203,30 @@ if (!model) {
     elements.businessActors.epi.prop("CP_Opacite", "30");
     elements.businessActors.epi.prop("CP_Extraterritorialite", "20");
 
-    elements.businessServices.consumerPSP = model.createObject("business-service", "Consumer PSP");
+    elements.businessServices.consumerPSP = model.createElement("business-service", "Consumer PSP");
     elements.businessServices.consumerPSP.documentation = "PSP côté client dans le modèle EPI";
 
     // Commerce
-    elements.businessServices.virementsInstantanes = model.createObject("business-service", "Virements Instantanés");
+    elements.businessServices.virementsInstantanes = model.createElement("business-service", "Virements Instantanés");
     elements.businessServices.virementsInstantanes.documentation = "SEPA Instant Credit Transfer (SCT Inst)";
 
-    elements.applicationServices.apiOpenBanking = model.createObject("application-service", "API Open Banking");
+    elements.applicationServices.apiOpenBanking = model.createElement("application-service", "API Open Banking");
     elements.applicationServices.apiOpenBanking.documentation = "APIs PSD2 pour initiation de paiement et accès aux comptes";
 
     // Autres domaines
-    elements.businessServices.openBanking = model.createObject("business-service", "Open Banking");
+    elements.businessServices.openBanking = model.createElement("business-service", "Open Banking");
     elements.businessServices.openBanking.documentation = "Services bancaires ouverts (PSD2/DSP2)";
 
-    elements.businessServices.openFinance = model.createObject("business-service", "Open Finance");
+    elements.businessServices.openFinance = model.createElement("business-service", "Open Finance");
     elements.businessServices.openFinance.documentation = "Extension de l'Open Banking aux services financiers";
 
-    elements.businessServices.assurance = model.createObject("business-service", "Assurance");
+    elements.businessServices.assurance = model.createElement("business-service", "Assurance");
     elements.businessServices.assurance.documentation = "Services d'assurance intégrés au paiement";
 
-    elements.businessServices.credit = model.createObject("business-service", "Crédit");
+    elements.businessServices.credit = model.createElement("business-service", "Crédit");
     elements.businessServices.credit.documentation = "Services de crédit (BNPL, crédit à la consommation)";
 
-    elements.businessServices.crypto = model.createObject("business-service", "Crypto");
+    elements.businessServices.crypto = model.createElement("business-service", "Crypto");
     elements.businessServices.crypto.documentation = "Services de paiement en cryptomonnaies";
 
     console.log("  ✓ " + (Object.keys(elements.businessServices).length + Object.keys(elements.applicationServices).length) + " services créés");
@@ -237,10 +237,10 @@ if (!model) {
 
     console.log("\n7. Création du Système d'Acquisition Argentique...");
 
-    elements.applicationComponents.agentsIA = model.createObject("application-component", "Canal d'Acquisition (Agents IA)");
+    elements.applicationComponents.agentsIA = model.createElement("application-component", "Canal d'Acquisition (Agents IA)");
     elements.applicationComponents.agentsIA.documentation = "Agents IA conversationnels pour acquisition client et traitement intent";
 
-    elements.applicationComponents.orchestration = model.createObject("application-component", "Orchestration & Standards");
+    elements.applicationComponents.orchestration = model.createElement("application-component", "Orchestration & Standards");
     elements.applicationComponents.orchestration.documentation = "Moteur d'orchestration pour choix du rail de paiement optimal";
 
     console.log("  ✓ " + Object.keys(elements.applicationComponents).length + " composants applicatifs créés");
@@ -251,19 +251,19 @@ if (!model) {
 
     console.log("\n8. Création des Services de Paiement Applicatifs...");
 
-    elements.applicationServices.carteV1 = model.createObject("application-service", "Service Paiement Carte v1");
+    elements.applicationServices.carteV1 = model.createElement("application-service", "Service Paiement Carte v1");
     elements.applicationServices.carteV1.documentation = "Service applicatif pour paiements via schémas traditionnels";
 
-    elements.applicationServices.carteV2 = model.createObject("application-service", "Service Paiement Carte v2 (EPI)");
+    elements.applicationServices.carteV2 = model.createElement("application-service", "Service Paiement Carte v2 (EPI)");
     elements.applicationServices.carteV2.documentation = "Service applicatif pour paiements via EPI";
 
-    elements.applicationServices.commerce = model.createObject("application-service", "Service Paiement Commerce");
+    elements.applicationServices.commerce = model.createElement("application-service", "Service Paiement Commerce");
     elements.applicationServices.commerce.documentation = "Service pour paiements e-commerce (virements, Open Banking)";
 
-    elements.applicationServices.commerceNumerique = model.createObject("application-service", "Service Commerce Numérique");
+    elements.applicationServices.commerceNumerique = model.createElement("application-service", "Service Commerce Numérique");
     elements.applicationServices.commerceNumerique.documentation = "Services de paiement intégrés aux plateformes numériques";
 
-    elements.applicationServices.cryptoService = model.createObject("application-service", "Service Paiement Crypto");
+    elements.applicationServices.cryptoService = model.createElement("application-service", "Service Paiement Crypto");
     elements.applicationServices.cryptoService.documentation = "Service applicatif pour paiements en cryptomonnaies";
 
     console.log("  ✓ " + Object.keys(elements.applicationServices).length + " services applicatifs créés (total)");

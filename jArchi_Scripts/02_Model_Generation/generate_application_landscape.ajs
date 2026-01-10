@@ -32,7 +32,7 @@ if (!model) {
 
     applications.forEach(function(app, index) {
         // Create application component
-        var appComponent = model.createObject("application-component", app.name);
+        var appComponent = model.createElement("application-component", app.name);
         var appX = x + (index * (appWidth + spacing));
         view.add(appComponent, appX, y, appWidth, appHeight);
 
@@ -40,7 +40,7 @@ if (!model) {
 
         // Create services
         app.services.forEach(function(serviceName, sIndex) {
-            var service = model.createObject("application-service", serviceName);
+            var service = model.createElement("application-service", serviceName);
             var serviceX = appX + (sIndex * 80);
             view.add(service, serviceX, serviceY, 120, 55);
 
@@ -53,7 +53,7 @@ if (!model) {
 
         // Create data objects
         app.data.forEach(function(dataName, dIndex) {
-            var dataObj = model.createObject("data-object", dataName);
+            var dataObj = model.createElement("data-object", dataName);
             var dataX = appX + (dIndex * 80);
             view.add(dataObj, dataX, dataY, 120, 55);
 

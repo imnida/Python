@@ -10,16 +10,16 @@ var model = $("model").first();
 var view = model.createArchimateView("3-Tier Architecture");
 
 // Presentation Layer
-var webApp = model.createObject("application-component", "Web Application");
-var webUI = model.createObject("application-interface", "Web UI");
+var webApp = model.createElement("application-component", "Web Application");
+var webUI = model.createElement("application-interface", "Web UI");
 
 // Business Layer
-var appServer = model.createObject("application-component", "Application Server");
-var businessLogic = model.createObject("application-service", "Business Logic");
+var appServer = model.createElement("application-component", "Application Server");
+var businessLogic = model.createElement("application-service", "Business Logic");
 
 // Data Layer
-var database = model.createObject("node", "Database Server");
-var dataStore = model.createObject("artifact", "Data Store");
+var database = model.createElement("node", "Database Server");
+var dataStore = model.createElement("artifact", "Data Store");
 
 // Create relationships
 var r1 = model.createRelationship("composition-relationship", "", webApp, webUI);

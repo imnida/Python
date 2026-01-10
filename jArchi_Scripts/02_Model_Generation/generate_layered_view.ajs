@@ -27,9 +27,9 @@ if (!model) {
 
     // Business Layer
     var businessY = margin;
-    var businessActor = model.createObject("business-actor", "Customer");
-    var businessProcess = model.createObject("business-process", "Order Management");
-    var businessService = model.createObject("business-service", "Order Service");
+    var businessActor = model.createElement("business-actor", "Customer");
+    var businessProcess = model.createElement("business-process", "Order Management");
+    var businessService = model.createElement("business-service", "Order Service");
 
     view.add(businessActor, margin, businessY, elementWidth, elementHeight);
     view.add(businessProcess, margin + elementWidth + spacing, businessY, elementWidth, elementHeight);
@@ -43,9 +43,9 @@ if (!model) {
 
     // Application Layer
     var appY = businessY + layerHeight;
-    var appComponent = model.createObject("application-component", "Order Management System");
-    var appService = model.createObject("application-service", "Order Processing Service");
-    var dataObject = model.createObject("data-object", "Order Data");
+    var appComponent = model.createElement("application-component", "Order Management System");
+    var appService = model.createElement("application-service", "Order Processing Service");
+    var dataObject = model.createElement("data-object", "Order Data");
 
     view.add(appComponent, margin, appY, elementWidth, elementHeight);
     view.add(appService, margin + elementWidth + spacing, appY, elementWidth, elementHeight);
@@ -59,9 +59,9 @@ if (!model) {
 
     // Technology Layer
     var techY = appY + layerHeight;
-    var node = model.createObject("node", "Application Server");
-    var systemSoftware = model.createObject("system-software", "Database System");
-    var artifact = model.createObject("artifact", "Application Package");
+    var node = model.createElement("node", "Application Server");
+    var systemSoftware = model.createElement("system-software", "Database System");
+    var artifact = model.createElement("artifact", "Application Package");
 
     view.add(node, margin, techY, elementWidth, elementHeight);
     view.add(systemSoftware, margin + elementWidth + spacing, techY, elementWidth, elementHeight);

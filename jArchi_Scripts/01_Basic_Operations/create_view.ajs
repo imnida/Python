@@ -15,11 +15,11 @@ if (!model) {
     var view = model.createArchimateView("Sample Business Process View");
 
     // Create elements
-    var customer = model.createObject("business-actor", "Customer");
-    var salesRep = model.createObject("business-role", "Sales Representative");
-    var orderProcess = model.createObject("business-process", "Order Processing");
-    var crmSystem = model.createObject("application-component", "CRM System");
-    var database = model.createObject("node", "Customer Database");
+    var customer = model.createElement("business-actor", "Customer");
+    var salesRep = model.createElement("business-role", "Sales Representative");
+    var orderProcess = model.createElement("business-process", "Order Processing");
+    var crmSystem = model.createElement("application-component", "CRM System");
+    var database = model.createElement("node", "Customer Database");
 
     // Create relationships
     var assignment = model.createRelationship("assignment-relationship",

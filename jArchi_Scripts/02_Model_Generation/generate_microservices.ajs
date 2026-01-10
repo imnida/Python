@@ -27,9 +27,9 @@ if (!model) {
     ];
 
     // Create infrastructure components
-    var apiGateway = model.createObject("application-component", "API Gateway");
-    var serviceRegistry = model.createObject("application-component", "Service Registry");
-    var messageBroker = model.createObject("application-component", "Message Broker");
+    var apiGateway = model.createElement("application-component", "API Gateway");
+    var serviceRegistry = model.createElement("application-component", "Service Registry");
+    var messageBroker = model.createElement("application-component", "Message Broker");
 
     // Layout
     var y = 50;
@@ -45,11 +45,11 @@ if (!model) {
         var serviceX = x + (index * serviceSpacing);
 
         // Create microservice
-        var microservice = model.createObject("application-component", svc.name);
+        var microservice = model.createElement("application-component", svc.name);
         view.add(microservice, serviceX, servicesY, 150, 60);
 
         // Create interface
-        var apiInterface = model.createObject("application-interface", svc.name + " API");
+        var apiInterface = model.createElement("application-interface", svc.name + " API");
         view.add(apiInterface, serviceX, servicesY + 80, 150, 55);
 
         var compRel = model.createRelationship("composition-relationship", "", microservice, apiInterface);
@@ -64,7 +64,7 @@ if (!model) {
         view.add(assocRel);
 
         // Create database
-        var database = model.createObject("node", svc.db);
+        var database = model.createElement("node", svc.db);
         view.add(database, serviceX, servicesY + 200, 150, 60);
 
         var dbAccess = model.createRelationship("access-relationship", "", microservice, database);

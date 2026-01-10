@@ -287,5 +287,4 @@ try {
     displaySummary();
 } catch (error) {
     log("ERROR", "Erreur fatale: " + error);
-    java.lang.System.exit(1);
 }

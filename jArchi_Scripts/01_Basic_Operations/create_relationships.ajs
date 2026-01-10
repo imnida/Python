@@ -13,11 +13,11 @@ if (!model) {
     console.log("No model found. Please open a model first.");
 } else {
     // Create sample elements
-    var actor = model.createObject("business-actor", "User");
-    var process = model.createObject("business-process", "Login Process");
-    var service = model.createObject("business-service", "Authentication Service");
-    var application = model.createObject("application-component", "Authentication System");
-    var server = model.createObject("node", "Auth Server");
+    var actor = model.createElement("business-actor", "User");
+    var process = model.createElement("business-process", "Login Process");
+    var service = model.createElement("business-service", "Authentication Service");
+    var application = model.createElement("application-component", "Authentication System");
+    var server = model.createElement("node", "Auth Server");
 
     // Create relationships
     // Structural Relationships

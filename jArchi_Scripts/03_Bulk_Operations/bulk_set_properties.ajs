@@ -1,0 +1,61 @@
+/*
+ * Bulk Set Properties
+ *
+ * Set properties on multiple elements at once:
+ * - Add custom properties
+ * - Set status, phase, or lifecycle stage
+ * - Tag elements for categorization
+ */
+
+console.log("Bulk Set Properties...");
+
+var model = $("model").first();
+
+if (!model) {
+    console.log("No model found.");
+} else {
+    // Configuration
+    var config = {
+        elementType: "application-component",
+        properties: [
+            {key: "Status", value: "Active"},
+            {key: "Owner", value: "IT Department"},
+            {key: "Lifecycle", value: "Production"},
+            {key: "Criticality", value: "High"},
+            {key: "Version", value: "1.0"}
+        ]
+    };
+
+    var elements = $(config.elementType);
+    console.log("Setting properties on " + elements.size() + " elements...");
+
+    var count = 0;
+
+    elements.each(function(element) {
+        config.properties.forEach(function(prop) {
+            element.prop(prop.key, prop.value);
+        });
+
+        console.log("  ✓ " + element.name + " - properties set");
+        count++;
+    });
+
+    console.log("✓ Properties set on " + count + " elements");
+
+    // Example: Set different properties based on element name pattern
+    console.log("\nSetting conditional properties...");
+
+    $("application-component").each(function(app) {
+        if (app.name.indexOf("Legacy") !== -1) {
+            app.prop("Status", "Deprecated");
+            app.prop("Migration Plan", "2026 Q2");
+            console.log("  ⚠ " + app.name + " marked as deprecated");
+        } else if (app.name.indexOf("Cloud") !== -1) {
+            app.prop("Deployment", "Cloud");
+            app.prop("Provider", "AWS");
+            console.log("  ☁ " + app.name + " marked as cloud-based");
+        }
+    });
+
+    console.log("✓ Conditional properties applied");
+}

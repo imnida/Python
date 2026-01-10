@@ -1,0 +1,84 @@
+/*
+ * Generate Layered ArchiMate View
+ *
+ * Creates a complete layered architecture view with:
+ * - Business Layer
+ * - Application Layer
+ * - Technology Layer
+ * Including proper relationships between layers
+ */
+
+console.log("Generating Layered Architecture View...");
+
+var model = $("model").first();
+
+if (!model) {
+    console.log("No model found. Please open a model first.");
+} else {
+    // Create view
+    var view = model.createArchimateView("Layered Architecture View");
+
+    // Layout parameters
+    var margin = 50;
+    var layerHeight = 150;
+    var elementWidth = 140;
+    var elementHeight = 60;
+    var spacing = 30;
+
+    // Business Layer
+    var businessY = margin;
+    var businessActor = model.createObject("business-actor", "Customer");
+    var businessProcess = model.createObject("business-process", "Order Management");
+    var businessService = model.createObject("business-service", "Order Service");
+
+    view.add(businessActor, margin, businessY, elementWidth, elementHeight);
+    view.add(businessProcess, margin + elementWidth + spacing, businessY, elementWidth, elementHeight);
+    view.add(businessService, margin + 2 * (elementWidth + spacing), businessY, elementWidth, elementHeight);
+
+    // Business relationships
+    var busRel1 = model.createRelationship("triggering-relationship", "", businessActor, businessProcess);
+    var busRel2 = model.createRelationship("realization-relationship", "", businessProcess, businessService);
+    view.add(busRel1);
+    view.add(busRel2);
+
+    // Application Layer
+    var appY = businessY + layerHeight;
+    var appComponent = model.createObject("application-component", "Order Management System");
+    var appService = model.createObject("application-service", "Order Processing Service");
+    var dataObject = model.createObject("data-object", "Order Data");
+
+    view.add(appComponent, margin, appY, elementWidth, elementHeight);
+    view.add(appService, margin + elementWidth + spacing, appY, elementWidth, elementHeight);
+    view.add(dataObject, margin + 2 * (elementWidth + spacing), appY, elementWidth, elementHeight);
+
+    // Application relationships
+    var appRel1 = model.createRelationship("realization-relationship", "", appComponent, appService);
+    var appRel2 = model.createRelationship("access-relationship", "reads/writes", appComponent, dataObject);
+    view.add(appRel1);
+    view.add(appRel2);
+
+    // Technology Layer
+    var techY = appY + layerHeight;
+    var node = model.createObject("node", "Application Server");
+    var systemSoftware = model.createObject("system-software", "Database System");
+    var artifact = model.createObject("artifact", "Application Package");
+
+    view.add(node, margin, techY, elementWidth, elementHeight);
+    view.add(systemSoftware, margin + elementWidth + spacing, techY, elementWidth, elementHeight);
+    view.add(artifact, margin + 2 * (elementWidth + spacing), techY, elementWidth, elementHeight);
+
+    // Technology relationships
+    var techRel1 = model.createRelationship("assignment-relationship", "", artifact, node);
+    var techRel2 = model.createRelationship("assignment-relationship", "", systemSoftware, node);
+    view.add(techRel1);
+    view.add(techRel2);
+
+    // Cross-layer relationships
+    var crossRel1 = model.createRelationship("realization-relationship", "", appService, businessService);
+    var crossRel2 = model.createRelationship("assignment-relationship", "", appComponent, node);
+    view.add(crossRel1);
+    view.add(crossRel2);
+
+    console.log("✓ Layered Architecture View created successfully!");
+    console.log("View contains 3 layers with interconnected elements");
+}

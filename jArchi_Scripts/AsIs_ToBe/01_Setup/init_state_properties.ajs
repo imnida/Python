@@ -1,0 +1,263 @@
+/*
+ * Initialisation des Propriétés d'État (As-Is / To-Be)
+ *
+ * Description : Initialise les propriétés pour gérer les états architecturaux
+ * Auteur : Constitutional AI Framework
+ * Date : 2026-01-10
+ * Version : 1.0
+ *
+ * Intégration Constitutional AI :
+ *   - Traçabilité : OUI (suivi de l'évolution architecturale)
+ *   - Falsifiabilité : OUI (conditions de transition)
+ *   - Choke Points : OUI (risques de migration)
+ *
+ * États supportés :
+ *   - AS-IS : Architecture actuelle (existant)
+ *   - TO-BE : Architecture cible (futur)
+ *   - TRANSITION : État intermédiaire de migration
+ *   - DEPRECATED : À retirer / décommissionner
+ *   - PLANNED : Planifié mais pas encore en transition
+ *   - CANCELLED : Annulé / abandonné
+ */
+
+console.clear();
+console.show();
+
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+
+var config = {
+    // État par défaut pour les éléments existants
+    defaultState: "AS-IS",
+
+    // États disponibles
+    states: [
+        { code: "AS-IS", name: "Actuel (As-Is)", color: "#4CAF50", icon: "✓" },
+        { code: "TO-BE", name: "Cible (To-Be)", color: "#2196F3", icon: "★" },
+        { code: "TRANSITION", name: "En transition", color: "#FF9800", icon: "⟳" },
+        { code: "DEPRECATED", name: "Déprécié", color: "#F44336", icon: "✗" },
+        { code: "PLANNED", name: "Planifié", color: "#9C27B0", icon: "○" },
+        { code: "CANCELLED", name: "Annulé", color: "#757575", icon: "◌" }
+    ],
+
+    // Propriétés à créer
+    properties: {
+        state: "State",                           // État actuel
+        stateReason: "State_Reason",              // Justification de l'état
+        transitionDate: "State_Transition_Date",  // Date de transition prévue
+        migrationPhase: "Migration_Phase",        // Phase de migration (1, 2, 3...)
+        migrationRisk: "Migration_Risk",          // Risque de migration (LOW, MEDIUM, HIGH, CRITICAL)
+        retirementDate: "Retirement_Date",        // Date de retrait (pour DEPRECATED)
+        replacedBy: "Replaced_By",                // ID de l'élément de remplacement
+        stateHistory: "State_History"             // Historique des changements d'état
+    },
+
+    // Options
+    overwriteExisting: false,      // Ne pas écraser les états existants
+    initializeRelationships: false, // Initialiser aussi les relations
+    addColorization: true,         // Ajouter des métadonnées de couleur
+    addInitDate: true              // Ajouter State_Init_Date
+};
+
+// ============================================================================
+// VARIABLES GLOBALES
+// ============================================================================
+
+var stats = {
+    elementsInitialized: 0,
+    relationshipsInitialized: 0,
+    alreadyInitialized: 0,
+    errors: 0
+};
+
+// ============================================================================
+// FONCTIONS UTILITAIRES
+// ============================================================================
+
+function log(level, message) {
+    var prefix = {
+        "INFO": "ℹ️  ",
+        "SUCCESS": "✅ ",
+        "WARNING": "⚠️  ",
+        "ERROR": "❌ "
+    }[level] || "";
+    console.log(prefix + message);
+}
+
+function hasStateProperty(obj) {
+    return obj.prop(config.properties.state) !== null;
+}
+
+function getStateInfo(stateCode) {
+    for (var i = 0; i < config.states.length; i++) {
+        if (config.states[i].code === stateCode) {
+            return config.states[i];
+        }
+    }
+    return null;
+}
+
+function initializeObject(obj, objectType) {
+    try {
+        // Vérifier si déjà initialisé
+        if (!config.overwriteExisting && hasStateProperty(obj)) {
+            stats.alreadyInitialized++;
+            return;
+        }
+
+        var objName = obj.name || "[Sans nom]";
+
+        // 1. Propriété d'état principal
+        obj.prop(config.properties.state, config.defaultState);
+
+        // 2. Métadonnées d'état
+        obj.prop(config.properties.stateReason, "État initial par défaut");
+
+        // Transition date vide (à définir plus tard)
+        obj.prop(config.properties.transitionDate, "");
+
+        // Migration phase vide
+        obj.prop(config.properties.migrationPhase, "");
+
+        // Migration risk par défaut
+        obj.prop(config.properties.migrationRisk, "");
+
+        // Retirement date vide
+        obj.prop(config.properties.retirementDate, "");
+
+        // Replaced by vide
+        obj.prop(config.properties.replacedBy, "");
+
+        // 3. Historique des états
+        var timestamp = new Date().toISOString().split('T')[0];
+        obj.prop(config.properties.stateHistory, timestamp + ":" + config.defaultState + ":Initialisation");
+
+        // 4. Date d'initialisation
+        if (config.addInitDate) {
+            obj.prop("State_Init_Date", timestamp);
+        }
+
+        // 5. Colorisation (métadonnées pour visualisation)
+        if (config.addColorization) {
+            var stateInfo = getStateInfo(config.defaultState);
+            if (stateInfo) {
+                obj.prop("State_Color", stateInfo.color);
+                obj.prop("State_Icon", stateInfo.icon);
+            }
+        }
+
+        // Incrémenter les stats
+        if (objectType === "element") {
+            stats.elementsInitialized++;
+        } else if (objectType === "relationship") {
+            stats.relationshipsInitialized++;
+        }
+
+    } catch (error) {
+        log("ERROR", "Erreur lors de l'initialisation de '" + obj.name + "': " + error);
+        stats.errors++;
+    }
+}
+
+// ============================================================================
+// TRAITEMENT PRINCIPAL
+// ============================================================================
+
+function initializeStates() {
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "  INITIALISATION DES ÉTATS AS-IS / TO-BE");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "");
+    log("INFO", "📋 Configuration:");
+    log("INFO", "   • État par défaut: " + config.defaultState);
+    log("INFO", "   • Nombre d'états supportés: " + config.states.length);
+    log("INFO", "");
+
+    config.states.forEach(function(state) {
+        log("INFO", "   " + state.icon + " " + state.code + " - " + state.name);
+    });
+
+    log("INFO", "");
+    log("INFO", "🔧 Traitement en cours...");
+    log("INFO", "");
+
+    // Traiter les éléments
+    log("INFO", "📦 Initialisation des éléments...");
+    $("element").each(function(elem) {
+        initializeObject(elem, "element");
+    });
+
+    // Traiter les relations (optionnel)
+    if (config.initializeRelationships) {
+        log("INFO", "🔗 Initialisation des relations...");
+        $("relationship").each(function(rel) {
+            initializeObject(rel, "relationship");
+        });
+    }
+
+    log("INFO", "");
+    log("SUCCESS", "✅ Initialisation terminée !");
+}
+
+function displaySummary() {
+    log("INFO", "");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "  RÉSUMÉ DE L'INITIALISATION");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "");
+    log("INFO", "📊 Objets initialisés:");
+    log("INFO", "   • Éléments: " + stats.elementsInitialized);
+
+    if (config.initializeRelationships) {
+        log("INFO", "   • Relations: " + stats.relationshipsInitialized);
+    }
+
+    log("INFO", "");
+    log("INFO", "   • Total: " + (stats.elementsInitialized + stats.relationshipsInitialized));
+    log("INFO", "   • Déjà initialisés (ignorés): " + stats.alreadyInitialized);
+
+    if (stats.errors > 0) {
+        log("WARNING", "   • Erreurs rencontrées: " + stats.errors);
+    }
+
+    log("INFO", "");
+    log("INFO", "📝 Propriétés créées:");
+    log("INFO", "   • " + config.properties.state + " : État actuel (" + config.defaultState + ")");
+    log("INFO", "   • " + config.properties.stateReason + " : Justification");
+    log("INFO", "   • " + config.properties.transitionDate + " : Date de transition");
+    log("INFO", "   • " + config.properties.migrationPhase + " : Phase de migration");
+    log("INFO", "   • " + config.properties.migrationRisk + " : Risque de migration");
+    log("INFO", "   • " + config.properties.retirementDate + " : Date de retrait");
+    log("INFO", "   • " + config.properties.replacedBy + " : Remplacé par");
+    log("INFO", "   • " + config.properties.stateHistory + " : Historique");
+
+    log("INFO", "");
+    log("INFO", "📝 Prochaines étapes:");
+    log("INFO", "   1. Définir les états TO-BE: set_element_state.ajs ou édition manuelle");
+    log("INFO", "   2. Planifier la migration: generate_migration_roadmap.ajs");
+    log("INFO", "   3. Analyser les écarts: gap_analysis.ajs");
+    log("INFO", "   4. Visualiser par état: colorize_by_state.ajs");
+    log("INFO", "   5. Générer le rapport: generate_state_report.ajs");
+
+    log("INFO", "");
+    log("INFO", "💡 États disponibles:");
+
+    config.states.forEach(function(state) {
+        log("INFO", "   " + state.icon + " " + state.code.padEnd(12, " ") + " - " + state.name);
+    });
+
+    log("INFO", "");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+}
+
+// ============================================================================
+// EXÉCUTION
+// ============================================================================
+
+try {
+    initializeStates();
+    displaySummary();
+} catch (error) {
+    log("ERROR", "Erreur fatale: " + error);
+}

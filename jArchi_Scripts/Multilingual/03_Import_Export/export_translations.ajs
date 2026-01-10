@@ -1,0 +1,467 @@
+/*
+ * Exporter les Traductions
+ *
+ * Description : Exporte toutes les traductions du modèle vers CSV ou JSON
+ * Auteur : Constitutional AI Framework
+ * Date : 2026-01-10
+ * Version : 1.0
+ *
+ * Intégration Constitutional AI :
+ *   - Traçabilité : OUI (export des métadonnées de traçabilité)
+ *   - Falsifiabilité : NON (export de données)
+ *   - Choke Points : OUI (export des scores CP)
+ *
+ * Usage :
+ *   1. Configurer le format (CSV ou JSON) dans config.format
+ *   2. Exécuter le script
+ *   3. Le fichier sera sauvegardé dans le dossier du modèle
+ *
+ * Format CSV :
+ *   Type,ID,Name_Original,ML_Name_fr,ML_Name_en,ML_Name_de,...,ML_Description_fr,...
+ *
+ * Format JSON :
+ *   { "elements": [ { "id": "...", "name": "...", "translations": {...} } ], ... }
+ */
+
+console.clear();
+console.show();
+
+load(__DIR__ + "../../libs/json2.js"); // Charger la bibliothèque JSON si disponible
+
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+
+var config = {
+    // Format de sortie
+    format: "csv", // "csv" ou "json"
+
+    // Fichier de sortie (dans le dossier du modèle)
+    outputFileName: "translations_export", // Extension ajoutée automatiquement
+
+    // Langues à exporter
+    languages: ["fr", "en", "de", "es", "it", "pt"],
+
+    // Types d'objets à exporter
+    exportElements: true,
+    exportRelationships: true,
+    exportViews: true,
+
+    // Champs à exporter
+    exportNames: true,
+    exportDescriptions: true,
+    exportMetadata: true, // ML_Default_Language, ML_Current_Language, etc.
+
+    // Options CSV
+    csvDelimiter: ";",      // Séparateur (peut être "," ou ";")
+    csvQuote: '"',          // Caractère de citation
+    csvIncludeHeader: true, // Inclure la ligne d'en-tête
+
+    // Options avancées
+    exportOnlyTranslated: false,  // Exporter seulement les objets avec traductions
+    exportEmptyFields: true,      // Inclure les champs vides
+    includeChokepointScores: true // Inclure les scores CP si disponibles
+};
+
+// ============================================================================
+// VARIABLES GLOBALES
+// ============================================================================
+
+var stats = {
+    elementsExported: 0,
+    relationshipsExported: 0,
+    viewsExported: 0,
+    totalRows: 0,
+    fileSize: 0
+};
+
+var exportData = [];
+var outputPath = "";
+
+// ============================================================================
+// FONCTIONS UTILITAIRES
+// ============================================================================
+
+function log(level, message) {
+    var prefix = {
+        "INFO": "ℹ️  ",
+        "SUCCESS": "✅ ",
+        "WARNING": "⚠️  ",
+        "ERROR": "❌ "
+    }[level] || "";
+    console.log(prefix + message);
+}
+
+function escapeCSV(value) {
+    if (value === null || value === undefined) {
+        return "";
+    }
+
+    value = String(value);
+
+    // Échapper les guillemets
+    if (value.indexOf(config.csvQuote) !== -1) {
+        value = value.replace(new RegExp(config.csvQuote, "g"), config.csvQuote + config.csvQuote);
+    }
+
+    // Encadrer avec des guillemets si nécessaire
+    if (value.indexOf(config.csvDelimiter) !== -1 ||
+        value.indexOf("\n") !== -1 ||
+        value.indexOf(config.csvQuote) !== -1) {
+        value = config.csvQuote + value + config.csvQuote;
+    }
+
+    return value;
+}
+
+function hasTranslations(obj) {
+    var props = obj.prop();
+    for (var key in props) {
+        if (key.indexOf("ML_Name_") === 0 || key.indexOf("ML_Description_") === 0) {
+            if (props[key] && props[key] !== "") {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+function exportObjectToCSV(obj, type) {
+    // Vérifier si on doit exporter
+    if (config.exportOnlyTranslated && !hasTranslations(obj)) {
+        return null;
+    }
+
+    var row = [];
+
+    // Colonnes de base
+    row.push(escapeCSV(type));
+    row.push(escapeCSV(obj.id));
+    row.push(escapeCSV(obj.name));
+    row.push(escapeCSV(obj.type || ""));
+
+    // Métadonnées multilingues
+    if (config.exportMetadata) {
+        row.push(escapeCSV(obj.prop("ML_Default_Language") || ""));
+        row.push(escapeCSV(obj.prop("ML_Current_Language") || ""));
+        row.push(escapeCSV(obj.prop("ML_Enabled_Languages") || ""));
+    }
+
+    // Noms traduits
+    if (config.exportNames) {
+        config.languages.forEach(function(lang) {
+            var nameProp = "ML_Name_" + lang;
+            row.push(escapeCSV(obj.prop(nameProp) || ""));
+        });
+    }
+
+    // Descriptions traduites
+    if (config.exportDescriptions) {
+        config.languages.forEach(function(lang) {
+            var descProp = "ML_Description_" + lang;
+            row.push(escapeCSV(obj.prop(descProp) || ""));
+        });
+    }
+
+    // Scores Choke Points (si disponibles)
+    if (config.includeChokepointScores && type === "element") {
+        row.push(escapeCSV(obj.prop("CP_Score_Total") || ""));
+        row.push(escapeCSV(obj.prop("CP_Criticite") || ""));
+    }
+
+    return row.join(config.csvDelimiter);
+}
+
+function exportObjectToJSON(obj, type) {
+    // Vérifier si on doit exporter
+    if (config.exportOnlyTranslated && !hasTranslations(obj)) {
+        return null;
+    }
+
+    var jsonObj = {
+        type: type,
+        id: obj.id,
+        name: obj.name,
+        archiType: obj.type || "",
+        metadata: {},
+        translations: {}
+    };
+
+    // Métadonnées
+    if (config.exportMetadata) {
+        jsonObj.metadata.defaultLanguage = obj.prop("ML_Default_Language") || "";
+        jsonObj.metadata.currentLanguage = obj.prop("ML_Current_Language") || "";
+        jsonObj.metadata.enabledLanguages = obj.prop("ML_Enabled_Languages") || "";
+        jsonObj.metadata.translationDate = obj.prop("ML_Translation_Date") || "";
+    }
+
+    // Traductions
+    config.languages.forEach(function(lang) {
+        jsonObj.translations[lang] = {
+            name: obj.prop("ML_Name_" + lang) || "",
+            description: obj.prop("ML_Description_" + lang) || ""
+        };
+    });
+
+    // Scores Choke Points
+    if (config.includeChokepointScores && type === "element") {
+        jsonObj.chokepointScore = {
+            total: obj.prop("CP_Score_Total") || "",
+            criticality: obj.prop("CP_Criticite") || "",
+            concentration: obj.prop("CP_Concentration") || "",
+            substituabilite: obj.prop("CP_Substituabilite") || ""
+        };
+    }
+
+    return jsonObj;
+}
+
+function generateCSVHeader() {
+    var headers = ["Type", "ID", "Name_Original", "ArchiMate_Type"];
+
+    // Métadonnées
+    if (config.exportMetadata) {
+        headers.push("ML_Default_Language");
+        headers.push("ML_Current_Language");
+        headers.push("ML_Enabled_Languages");
+    }
+
+    // Noms traduits
+    if (config.exportNames) {
+        config.languages.forEach(function(lang) {
+            headers.push("ML_Name_" + lang);
+        });
+    }
+
+    // Descriptions traduites
+    if (config.exportDescriptions) {
+        config.languages.forEach(function(lang) {
+            headers.push("ML_Description_" + lang);
+        });
+    }
+
+    // Choke Points
+    if (config.includeChokepointScores) {
+        headers.push("CP_Score_Total");
+        headers.push("CP_Criticite");
+    }
+
+    return headers.map(function(h) { return escapeCSV(h); }).join(config.csvDelimiter);
+}
+
+// ============================================================================
+// EXPORT CSV
+// ============================================================================
+
+function exportToCSV() {
+    var csvContent = [];
+
+    // En-tête
+    if (config.csvIncludeHeader) {
+        csvContent.push(generateCSVHeader());
+    }
+
+    // Éléments
+    if (config.exportElements) {
+        $("element").each(function(elem) {
+            var row = exportObjectToCSV(elem, "element");
+            if (row !== null) {
+                csvContent.push(row);
+                stats.elementsExported++;
+            }
+        });
+    }
+
+    // Relations
+    if (config.exportRelationships) {
+        $("relationship").each(function(rel) {
+            var row = exportObjectToCSV(rel, "relationship");
+            if (row !== null) {
+                csvContent.push(row);
+                stats.relationshipsExported++;
+            }
+        });
+    }
+
+    // Vues
+    if (config.exportViews) {
+        model.views.each(function(view) {
+            var row = exportObjectToCSV(view, "view");
+            if (row !== null) {
+                csvContent.push(row);
+                stats.viewsExported++;
+            }
+        });
+    }
+
+    stats.totalRows = csvContent.length;
+    return csvContent.join("\n");
+}
+
+// ============================================================================
+// EXPORT JSON
+// ============================================================================
+
+function exportToJSON() {
+    var jsonData = {
+        metadata: {
+            exportDate: new Date().toISOString(),
+            modelName: model.name,
+            languages: config.languages,
+            format: "Constitutional AI Framework - Multilingual Export v1.0"
+        },
+        elements: [],
+        relationships: [],
+        views: []
+    };
+
+    // Éléments
+    if (config.exportElements) {
+        $("element").each(function(elem) {
+            var obj = exportObjectToJSON(elem, "element");
+            if (obj !== null) {
+                jsonData.elements.push(obj);
+                stats.elementsExported++;
+            }
+        });
+    }
+
+    // Relations
+    if (config.exportRelationships) {
+        $("relationship").each(function(rel) {
+            var obj = exportObjectToJSON(rel, "relationship");
+            if (obj !== null) {
+                jsonData.relationships.push(obj);
+                stats.relationshipsExported++;
+            }
+        });
+    }
+
+    // Vues
+    if (config.exportViews) {
+        model.views.each(function(view) {
+            var obj = exportObjectToJSON(view, "view");
+            if (obj !== null) {
+                jsonData.views.push(obj);
+                stats.viewsExported++;
+            }
+        });
+    }
+
+    stats.totalRows = jsonData.elements.length + jsonData.relationships.length + jsonData.views.length;
+
+    // Convertir en JSON (avec indentation pour lisibilité)
+    return JSON.stringify(jsonData, null, 2);
+}
+
+// ============================================================================
+// SAUVEGARDE FICHIER
+// ============================================================================
+
+function saveToFile(content) {
+    var extension = config.format === "json" ? ".json" : ".csv";
+    var fileName = config.outputFileName + extension;
+
+    // Obtenir le chemin du modèle
+    var modelPath = model.path;
+    if (!modelPath) {
+        log("ERROR", "Le modèle n'a pas encore été sauvegardé. Veuillez sauvegarder le modèle d'abord.");
+        return false;
+    }
+
+    // Calculer le chemin du fichier de sortie
+    var File = Java.type("java.io.File");
+    var modelFile = new File(modelPath);
+    var modelDir = modelFile.getParent();
+    outputPath = modelDir + File.separator + fileName;
+
+    try {
+        // Écrire le fichier
+        var FileWriter = Java.type("java.io.FileWriter");
+        var writer = new FileWriter(outputPath);
+        writer.write(content);
+        writer.close();
+
+        // Calculer la taille
+        var outputFile = new File(outputPath);
+        stats.fileSize = outputFile.length();
+
+        return true;
+    } catch (error) {
+        log("ERROR", "Erreur lors de l'écriture du fichier: " + error);
+        return false;
+    }
+}
+
+// ============================================================================
+// TRAITEMENT PRINCIPAL
+// ============================================================================
+
+function performExport() {
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "  EXPORT DES TRADUCTIONS");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "");
+    log("INFO", "📋 Configuration:");
+    log("INFO", "   • Format: " + config.format.toUpperCase());
+    log("INFO", "   • Langues: " + config.languages.join(", ").toUpperCase());
+    log("INFO", "   • Fichier: " + config.outputFileName + "." + config.format);
+    log("INFO", "");
+    log("INFO", "🔄 Export en cours...");
+    log("INFO", "");
+
+    var content;
+
+    if (config.format === "csv") {
+        content = exportToCSV();
+    } else if (config.format === "json") {
+        content = exportToJSON();
+    } else {
+        log("ERROR", "Format non supporté: " + config.format);
+        return;
+    }
+
+    // Sauvegarder le fichier
+    if (saveToFile(content)) {
+        log("SUCCESS", "✅ Export réussi !");
+    } else {
+        log("ERROR", "❌ Échec de l'export");
+    }
+}
+
+function displaySummary() {
+    log("INFO", "");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "  RÉSUMÉ DE L'EXPORT");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "");
+    log("INFO", "📊 Objets exportés:");
+    log("INFO", "   • Éléments: " + stats.elementsExported);
+    log("INFO", "   • Relations: " + stats.relationshipsExported);
+    log("INFO", "   • Vues: " + stats.viewsExported);
+    log("INFO", "   • Total: " + (stats.elementsExported + stats.relationshipsExported + stats.viewsExported));
+    log("INFO", "");
+    log("INFO", "📁 Fichier:");
+    log("INFO", "   • Chemin: " + outputPath);
+    log("INFO", "   • Taille: " + (stats.fileSize / 1024).toFixed(2) + " KB");
+    log("INFO", "   • Lignes/Objets: " + stats.totalRows);
+    log("INFO", "");
+    log("INFO", "📝 Prochaines étapes:");
+    log("INFO", "   1. Ouvrir le fichier exporté");
+    log("INFO", "   2. Traduire les colonnes ML_Name_* et ML_Description_*");
+    log("INFO", "   3. Sauvegarder le fichier");
+    log("INFO", "   4. Importer avec import_translations.ajs");
+    log("INFO", "");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+}
+
+// ============================================================================
+// EXÉCUTION
+// ============================================================================
+
+try {
+    performExport();
+    displaySummary();
+} catch (error) {
+    log("ERROR", "Erreur fatale: " + error);
+}

@@ -1,0 +1,235 @@
+/*
+ * Calculate Choke Point Scores
+ *
+ * Calculates the total choke point score for each external component
+ * based on the 6 dimensions and assigns criticality levels.
+ *
+ * Score Formula:
+ *   Total = (Concentration × 0.25) + (Substituabilite × 0.25) +
+ *           (Externalites × 0.20) + (Asymetrie × 0.20) +
+ *           (Opacite × 0.10) + (Extraterritorialite × 0.20)
+ *
+ * Criticality Levels:
+ *   - CRITIQUE: 80-100 (existential risk)
+ *   - ELEVE: 60-79 (strategic risk)
+ *   - MOYEN: 40-59 (tactical risk)
+ *   - ACCEPTABLE: 0-39 (manageable)
+ */
+
+console.log("=" .repeat(60));
+console.log("CALCUL DES SCORES CHOKE POINTS");
+console.log("=" .repeat(60));
+
+var model = $("model").first();
+
+if (!model) {
+    console.log("❌ Aucun modèle trouvé.");
+} else {
+    // ========== CONFIGURATION ==========
+    var config = {
+        // Poids des dimensions (total = 1.0)
+        weights: {
+            concentration: 0.25,
+            substituabilite: 0.25,
+            externalites: 0.20,
+            asymetrie: 0.20,
+            opacite: 0.10,
+            extraterritorialite: 0.20
+        },
+
+        // Seuils de criticité
+        thresholds: {
+            critique: 80,
+            eleve: 60,
+            moyen: 40
+        },
+
+        // Traiter uniquement les éléments externes
+        externalOnly: true
+    };
+    // ===================================
+
+    var processed = 0;
+    var scores = [];
+
+    console.log("\nConfiguration:");
+    console.log("  Poids Concentration: " + (config.weights.concentration * 100) + "%");
+    console.log("  Poids Substituabilité: " + (config.weights.substituabilite * 100) + "%");
+    console.log("  Poids Externalités: " + (config.weights.externalites * 100) + "%");
+    console.log("  Poids Asymétrie: " + (config.weights.asymetrie * 100) + "%");
+    console.log("  Poids Opacité: " + (config.weights.opacite * 100) + "%");
+    console.log("  Poids Extraterritorialité: " + (config.weights.extraterritorialite * 100) + "%");
+    console.log("\nSeuils:");
+    console.log("  CRITIQUE: ≥ " + config.thresholds.critique);
+    console.log("  ELEVÉ: ≥ " + config.thresholds.eleve);
+    console.log("  MOYEN: ≥ " + config.thresholds.moyen);
+    console.log("  ACCEPTABLE: < " + config.thresholds.moyen);
+    console.log("");
+
+    // Fonction de calcul du score
+    function calculateScore(elem) {
+        var conc = parseFloat(elem.prop("CP_Concentration")) || 0;
+        var subs = parseFloat(elem.prop("CP_Substituabilite")) || 0;
+        var exte = parseFloat(elem.prop("CP_Externalites")) || 0;
+        var asym = parseFloat(elem.prop("CP_Asymetrie")) || 0;
+        var opac = parseFloat(elem.prop("CP_Opacite")) || 0;
+        var extr = parseFloat(elem.prop("CP_Extraterritorialite")) || 0;
+
+        var total = (
+            conc * config.weights.concentration +
+            subs * config.weights.substituabilite +
+            exte * config.weights.externalites +
+            asym * config.weights.asymetrie +
+            opac * config.weights.opacite +
+            extr * config.weights.extraterritorialite
+        );
+
+        return Math.round(total * 10) / 10;  // Arrondi à 1 décimale
+    }
+
+    // Fonction de détermination de criticité
+    function getCriticality(score) {
+        if (score >= config.thresholds.critique) return "CRITIQUE";
+        if (score >= config.thresholds.eleve) return "ELEVE";
+        if (score >= config.thresholds.moyen) return "MOYEN";
+        return "ACCEPTABLE";
+    }
+
+    // Fonction pour obtenir le symbole
+    function getSymbol(criticality) {
+        switch(criticality) {
+            case "CRITIQUE": return "🔴";
+            case "ELEVE": return "🟠";
+            case "MOYEN": return "🟡";
+            case "ACCEPTABLE": return "🟢";
+            default: return "⚪";
+        }
+    }
+
+    // Parcourir tous les éléments
+    $("element").each(function(elem) {
+        var cpType = elem.prop("CP_Type");
+
+        // Filtrer si nécessaire
+        if (config.externalOnly && cpType !== "External") {
+            return;  // Skip
+        }
+
+        // Vérifier qu'au moins une dimension est scorée
+        var hasScores = (
+            elem.prop("CP_Concentration") ||
+            elem.prop("CP_Substituabilite") ||
+            elem.prop("CP_Externalites") ||
+            elem.prop("CP_Asymetrie") ||
+            elem.prop("CP_Opacite") ||
+            elem.prop("CP_Extraterritorialite")
+        );
+
+        if (!hasScores) {
+            return;  // Skip elements without scores
+        }
+
+        // Calculer le score
+        var totalScore = calculateScore(elem);
+        var criticality = getCriticality(totalScore);
+        var symbol = getSymbol(criticality);
+
+        // Mettre à jour les propriétés
+        elem.prop("CP_Score_Total", totalScore.toString());
+        elem.prop("CP_Criticite", criticality);
+
+        // Stocker pour rapport
+        scores.push({
+            name: elem.name,
+            vendor: elem.prop("CP_Vendor") || "Unknown",
+            score: totalScore,
+            criticality: criticality,
+            symbol: symbol,
+            type: elem.type
+        });
+
+        console.log(symbol + " " + elem.name.padEnd(40) +
+                    " Score: " + totalScore.toString().padStart(5) +
+                    " → " + criticality);
+
+        processed++;
+    });
+
+    // Trier par score décroissant
+    scores.sort(function(a, b) { return b.score - a.score; });
+
+    // Statistiques
+    console.log("\n" + "=" .repeat(60));
+    console.log("STATISTIQUES:");
+    console.log("=" .repeat(60));
+
+    var critique = scores.filter(function(s) { return s.criticality === "CRITIQUE"; });
+    var eleve = scores.filter(function(s) { return s.criticality === "ELEVE"; });
+    var moyen = scores.filter(function(s) { return s.criticality === "MOYEN"; });
+    var acceptable = scores.filter(function(s) { return s.criticality === "ACCEPTABLE"; });
+
+    console.log("Total éléments analysés: " + processed);
+    console.log("");
+    console.log("🔴 CRITIQUE (≥ 80): " + critique.length);
+    console.log("🟠 ÉLEVÉ (60-79): " + eleve.length);
+    console.log("🟡 MOYEN (40-59): " + moyen.length);
+    console.log("🟢 ACCEPTABLE (< 40): " + acceptable.length);
+
+    // Calcul Dependency Health Score (DHS)
+    if (scores.length > 0) {
+        var avgScore = scores.reduce(function(sum, s) { return sum + s.score; }, 0) / scores.length;
+        var dhs = Math.round((100 - avgScore) * 10) / 10;
+
+        console.log("\n📊 DEPENDENCY HEALTH SCORE (DHS):");
+        console.log("  Score moyen choke points: " + avgScore.toFixed(1));
+        console.log("  DHS: " + dhs + "/100");
+
+        if (dhs < 50) {
+            console.log("  ⚠️  ALERTE: DHS < 50 → Architecture non souveraine");
+        } else if (dhs < 70) {
+            console.log("  ⚠️  ATTENTION: DHS < 70 → Surveillance renforcée requise");
+        } else {
+            console.log("  ✅ OK: DHS ≥ 70 → Autonomie stratégique acceptable");
+        }
+    }
+
+    // Top 10 Choke Points
+    if (scores.length > 0) {
+        console.log("\n" + "=" .repeat(60));
+        console.log("TOP 10 CHOKE POINTS:");
+        console.log("=" .repeat(60));
+
+        var top10 = scores.slice(0, Math.min(10, scores.length));
+        top10.forEach(function(item, index) {
+            console.log((index + 1).toString().padStart(2) + ". " +
+                        item.symbol + " " +
+                        item.name.padEnd(35) +
+                        " | Score: " + item.score.toString().padStart(5) +
+                        " | " + item.vendor);
+        });
+    }
+
+    // Alertes critiques
+    if (critique.length > 0) {
+        console.log("\n" + "=" .repeat(60));
+        console.log("🚨 ALERTES CRITIQUES:");
+        console.log("=" .repeat(60));
+
+        critique.forEach(function(item) {
+            console.log("⚠️  " + item.name + " (" + item.vendor + ")");
+            console.log("   Score: " + item.score + "/100 → MITIGATION OBLIGATOIRE");
+        });
+
+        console.log("\n⚠️  " + critique.length + " choke point(s) CRITIQUE(S) détecté(s)");
+        console.log("   Action requise: Définir stratégie mitigation dans CP_Mitigation");
+    }
+
+    console.log("\n" + "=" .repeat(60));
+    console.log("✓ Calcul terminé !");
+    console.log("\n📋 PROCHAINES ÉTAPES:");
+    console.log("1. Analyser les choke points CRITIQUES");
+    console.log("2. Définir stratégies mitigation (propriété CP_Mitigation)");
+    console.log("3. Générer le Risk Register complet");
+    console.log("4. Planifier Q-Review");
+    console.log("=" .repeat(60));
+}

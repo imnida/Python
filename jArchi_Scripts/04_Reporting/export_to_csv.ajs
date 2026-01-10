@@ -1,0 +1,91 @@
+/*
+ * Export Elements to CSV
+ *
+ * Exports model elements and their properties to CSV format
+ * for analysis in Excel or other tools.
+ */
+
+console.log("Exporting elements to CSV...");
+
+var model = $("model").first();
+
+if (!model) {
+    console.log("No model found.");
+} else {
+    // Configuration
+    var elementType = "application-component"; // Change to export different types
+    var includeRelationships = true;
+
+    var elements = $(elementType);
+
+    if (elements.size() === 0) {
+        console.log("No elements of type '" + elementType + "' found.");
+    } else {
+        // Collect all unique property keys
+        var propertyKeys = {};
+        elements.each(function(elem) {
+            var props = elem.prop();
+            for (var key in props) {
+                propertyKeys[key] = true;
+            }
+        });
+
+        var propArray = Object.keys(propertyKeys).sort();
+
+        // Build CSV header
+        var csv = "ID,Name,Type,Documentation";
+        propArray.forEach(function(key) {
+            csv += "," + key;
+        });
+
+        if (includeRelationships) {
+            csv += ",Incoming Relationships,Outgoing Relationships";
+        }
+        csv += "\n";
+
+        // Build CSV rows
+        elements.each(function(elem) {
+            var row = "";
+
+            // Basic fields
+            row += '"' + elem.id + '",';
+            row += '"' + (elem.name || "").replace(/"/g, '""') + '",';
+            row += '"' + elem.type + '",';
+            row += '"' + (elem.documentation || "").replace(/"/g, '""') + '"';
+
+            // Properties
+            propArray.forEach(function(key) {
+                var value = elem.prop(key) || "";
+                row += ',"' + value.replace(/"/g, '""') + '"';
+            });
+
+            // Relationships
+            if (includeRelationships) {
+                var inRels = $(elem).inRels();
+                var outRels = $(elem).outRels();
+
+                var inRelStr = inRels.map(function(rel) {
+                    return rel.source.name + " (" + rel.type + ")";
+                }).join("; ");
+
+                var outRelStr = outRels.map(function(rel) {
+                    return rel.target.name + " (" + rel.type + ")";
+                }).join("; ");
+
+                row += ',"' + inRelStr.replace(/"/g, '""') + '"';
+                row += ',"' + outRelStr.replace(/"/g, '""') + '"';
+            }
+
+            csv += row + "\n";
+        });
+
+        // Output CSV
+        console.log("\n" + "=".repeat(60));
+        console.log("CSV Export for: " + elementType);
+        console.log("=".repeat(60));
+        console.log(csv);
+        console.log("=".repeat(60));
+        console.log("\n✓ Exported " + elements.size() + " elements");
+        console.log("Copy the CSV output above to a .csv file");
+    }
+}

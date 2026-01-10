@@ -1,0 +1,334 @@
+/*
+ * Generate Choke Point Risk Register
+ *
+ * Generates the comprehensive Risk Register with:
+ * - Top 10 Choke Points
+ * - Dependency Health Score (DHS)
+ * - Falsifiability conditions
+ * - Governance metrics
+ * - Budget estimates
+ *
+ * Output format matches the methodology template.
+ */
+
+console.log("╔" + "═".repeat(68) + "╗");
+console.log("║ 🚨 REGISTRE DES POINTS D'ÉTRANGLEMENT STRATÉGIQUES".padEnd(69) + "║");
+console.log("╚" + "═".repeat(68) + "╝");
+console.log("");
+
+var model = $("model").first();
+
+if (!model) {
+    console.log("❌ Aucun modèle trouvé.");
+} else {
+    var modelName = model.name;
+    var today = new Date().toISOString().split('T')[0];
+
+    console.log("Modèle: " + modelName);
+    console.log("Date: " + today);
+    console.log("");
+
+    // Collecter tous les choke points
+    var chokePoints = [];
+
+    $("element").filter(function(e) {
+        return e.prop("CP_Type") === "External" &&
+               e.prop("CP_Score_Total") &&
+               parseFloat(e.prop("CP_Score_Total")) > 0;
+    }).each(function(elem) {
+        var score = parseFloat(elem.prop("CP_Score_Total")) || 0;
+
+        chokePoints.push({
+            name: elem.name,
+            vendor: elem.prop("CP_Vendor") || "Unknown",
+            score: score,
+            criticality: elem.prop("CP_Criticite") || "NON_EVALUE",
+            mitigation: elem.prop("CP_Mitigation") || "(Non définie)",
+            budget: elem.prop("CP_Budget") || "À estimer",
+            dri: elem.prop("CP_DRI") || "(Non assigné)",
+            timeline: elem.prop("CP_Timeline") || "À planifier",
+            type: elem.type,
+            element: elem
+        });
+    });
+
+    if (chokePoints.length === 0) {
+        console.log("⚠️  Aucun choke point détecté.");
+        console.log("   Exécutez d'abord les scripts d'initialisation et de calcul.");
+    } else {
+        // Trier par score décroissant
+        chokePoints.sort(function(a, b) { return b.score - a.score; });
+
+        // ========== TOP 10 CHOKE POINTS ==========
+        console.log("═".repeat(70));
+        console.log("TOP 10 CHOKE POINTS CRITIQUES");
+        console.log("═".repeat(70));
+        console.log("");
+
+        // Header du tableau
+        console.log("┌" + "─".repeat(68) + "┐");
+        console.log("│ # │ Composant          │ Vendor      │Score│ Crit  │Timeline│");
+        console.log("├" + "─".repeat(68) + "┤");
+
+        var top10 = chokePoints.slice(0, Math.min(10, chokePoints.length));
+
+        top10.forEach(function(cp, index) {
+            var rank = (index + 1).toString().padStart(2);
+            var name = truncate(cp.name, 18).padEnd(18);
+            var vendor = truncate(cp.vendor, 11).padEnd(11);
+            var score = cp.score.toFixed(0).padStart(3);
+            var crit = getCritSymbol(cp.criticality);
+            var timeline = truncate(cp.timeline, 6).padEnd(6);
+
+            console.log("│ " + rank + " │ " + name + " │ " + vendor + " │ " +
+                        score + " │ " + crit + " │ " + timeline + " │");
+        });
+
+        console.log("└" + "─".repeat(68) + "┘");
+        console.log("");
+
+        // Détails Top 10
+        console.log("DÉTAILS DES MITIGATIONS:");
+        console.log("─".repeat(70));
+        console.log("");
+
+        top10.forEach(function(cp, index) {
+            console.log((index + 1) + ". " + cp.name + " (" + cp.vendor + ")");
+            console.log("   Score: " + cp.score.toFixed(1) + "/100 → " + cp.criticality);
+            console.log("   Mitigation: " + cp.mitigation);
+            console.log("   Budget: " + cp.budget + " | DRI: " + cp.dri);
+            console.log("   Timeline: " + cp.timeline);
+            console.log("");
+        });
+
+        // ========== MÉTRIQUES GLOBALES ==========
+        console.log("═".repeat(70));
+        console.log("MÉTRIQUES GLOBALES");
+        console.log("═".repeat(70));
+        console.log("");
+
+        var critique = chokePoints.filter(function(cp) { return cp.criticality === "CRITIQUE"; });
+        var eleve = chokePoints.filter(function(cp) { return cp.criticality === "ELEVE"; });
+        var moyen = chokePoints.filter(function(cp) { return cp.criticality === "MOYEN"; });
+        var acceptable = chokePoints.filter(function(cp) { return cp.criticality === "ACCEPTABLE"; });
+
+        console.log("Distribution par criticité:");
+        console.log("  🔴 CRITIQUE: " + critique.length.toString().padStart(3) + " (" + seuils.critique + ")");
+        console.log("  🟠 ÉLEVÉ: " + eleve.length.toString().padStart(3) + " (" + seuils.eleve + ")");
+        console.log("  🟡 MOYEN: " + moyen.length.toString().padStart(3));
+        console.log("  🟢 ACCEPTABLE: " + acceptable.length.toString().padStart(3));
+        console.log("  ─────────────");
+        console.log("  TOTAL: " + chokePoints.length.toString().padStart(3));
+        console.log("");
+
+        // Dependency Health Score (DHS)
+        var avgScore = chokePoints.reduce(function(sum, cp) {
+            return sum + cp.score;
+        }, 0) / chokePoints.length;
+
+        var dhs = 100 - avgScore;
+
+        console.log("Dependency Health Score (DHS):");
+        console.log("  Score moyen choke points: " + avgScore.toFixed(1) + "/100");
+        console.log("  DHS: " + dhs.toFixed(1) + "/100");
+        console.log("");
+
+        if (dhs < 50) {
+            console.log("  ⚠️  ALERTE CRITIQUE: DHS < 50");
+            console.log("      → Architecture non souveraine (capture imminente)");
+        } else if (dhs < 70) {
+            console.log("  ⚠️  ATTENTION: DHS < 70");
+            console.log("      → Surveillance renforcée requise");
+        } else {
+            console.log("  ✅ OK: DHS ≥ 70");
+            console.log("      → Autonomie stratégique acceptable");
+        }
+        console.log("");
+
+        // Seuils acceptables
+        var seuils = {
+            critique: 2,  // Max 2 choke points critiques acceptables
+            eleve: 5      // Max 5 choke points élevés acceptables
+        };
+
+        console.log("Conformité aux seuils:");
+        if (critique.length > seuils.critique) {
+            console.log("  ❌ Choke Points CRITIQUES: " + critique.length + "/" + seuils.critique +
+                        " (DÉPASSÉ)");
+        } else {
+            console.log("  ✅ Choke Points CRITIQUES: " + critique.length + "/" + seuils.critique);
+        }
+
+        if (eleve.length > seuils.eleve) {
+            console.log("  ❌ Choke Points ÉLEVÉS: " + eleve.length + "/" + seuils.eleve +
+                        " (DÉPASSÉ)");
+        } else {
+            console.log("  ✅ Choke Points ÉLEVÉS: " + eleve.length + "/" + seuils.eleve);
+        }
+        console.log("");
+
+        // Budget total mitigation
+        var budgetTotal = 0;
+        var budgetEstime = 0;
+
+        chokePoints.forEach(function(cp) {
+            if (cp.budget && cp.budget !== "À estimer") {
+                // Tenter d'extraire un nombre
+                var match = cp.budget.match(/[\d.,]+/);
+                if (match) {
+                    var value = parseFloat(match[0].replace(',', '.'));
+                    budgetTotal += value;
+                }
+            } else {
+                budgetEstime++;
+            }
+        });
+
+        if (budgetTotal > 0) {
+            console.log("Budget mitigation:");
+            console.log("  Total documenté: €" + budgetTotal.toFixed(1) + "M");
+            if (budgetEstime > 0) {
+                console.log("  À estimer: " + budgetEstime + " composant(s)");
+            }
+            console.log("");
+        }
+
+        // ========== FALSIFIABILITÉ GLOBALE ==========
+        console.log("═".repeat(70));
+        console.log("FALSIFIABILITÉ GLOBALE");
+        console.log("═".repeat(70));
+        console.log("");
+
+        console.log("Conditions d'échec (architecture non viable):");
+        console.log("");
+        console.log("  ❌ Si DHS < 50 en 2026");
+        console.log("     → Architecture non souveraine (capture imminente)");
+        console.log("     → Action: Refonte stratégique obligatoire");
+        console.log("");
+        console.log("  ❌ Si 3+ Choke Points score > 85");
+        console.log("     → Risque existentiel (dépendances critiques multiples)");
+        console.log("     → Action: Réduction urgente dépendances");
+        console.log("");
+        console.log("  ❌ Si budget mitigation > 2× budget projet initial");
+        console.log("     → ROI négatif (coût autonomie prohibitif)");
+        console.log("     → Action: Revoir ambitions souveraineté");
+        console.log("");
+
+        console.log("Conditions de succès (architecture viable):");
+        console.log("");
+        console.log("  ✅ Si DHS > 70 en 2027");
+        console.log("     → Autonomie stratégique confirmée");
+        console.log("");
+        console.log("  ✅ Si tous choke points CRITIQUES < 80 post-mitigation");
+        console.log("     → Risques maîtrisés");
+        console.log("");
+        console.log("  ✅ Si tests de réversibilité réussis (failover < 24h)");
+        console.log("     → Mitigations opérationnelles");
+        console.log("");
+
+        // ========== GOUVERNANCE ==========
+        console.log("═".repeat(70));
+        console.log("GOUVERNANCE");
+        console.log("═".repeat(70));
+        console.log("");
+
+        console.log("Process:");
+        console.log("  • Review fréquence: Trimestrielle (Q-Review)");
+        console.log("  • Ownership: Chief Architect (accountability)");
+        console.log("  • Escalation: COMEX si nouveau choke point score ≥ 85 détecté");
+        console.log("  • KPI Dashboard: Mise à jour mensuelle");
+        console.log("");
+
+        console.log("Prochaine Q-Review:");
+        var nextQuarter = getNextQuarterReview();
+        console.log("  Date: " + nextQuarter);
+        console.log("  Participants: Chief Architect, CISO, DPO, CTO, Procurement");
+        console.log("  Agenda: Review Top 10, Deep dive critique, Veille marché, ADR");
+        console.log("");
+
+        // ========== ACTIONS IMMÉDIATES ==========
+        if (critique.length > 0 || dhs < 70) {
+            console.log("═".repeat(70));
+            console.log("🚨 ACTIONS IMMÉDIATES REQUISES");
+            console.log("═".repeat(70));
+            console.log("");
+
+            if (critique.length > seuils.critique) {
+                console.log("1. URGENT: " + critique.length + " choke points CRITIQUES détectés");
+                console.log("   → Définir stratégie mitigation pour chacun");
+                console.log("   → Assigner DRI et budget");
+                console.log("   → Timeline max: Q2 2025");
+                console.log("");
+            }
+
+            if (dhs < 50) {
+                console.log("2. CRITIQUE: DHS = " + dhs.toFixed(1) + " (seuil: 50)");
+                console.log("   → Architecture non souveraine");
+                console.log("   → Escalation COMEX immédiate");
+                console.log("   → Revue stratégique complète");
+                console.log("");
+            } else if (dhs < 70) {
+                console.log("2. ATTENTION: DHS = " + dhs.toFixed(1) + " (seuil: 70)");
+                console.log("   → Plan amélioration DHS requis");
+                console.log("   → Objectif: DHS ≥ 70 dans 12 mois");
+                console.log("");
+            }
+
+            var unassigned = chokePoints.filter(function(cp) {
+                return cp.criticality === "CRITIQUE" &&
+                       (cp.dri === "(Non assigné)" || !cp.dri);
+            });
+
+            if (unassigned.length > 0) {
+                console.log("3. GOUVERNANCE: " + unassigned.length +
+                            " choke points CRITIQUES sans DRI");
+                console.log("   → Assigner propriétaire (DRI) pour chacun");
+                console.log("");
+            }
+        }
+
+        // ========== FOOTER ==========
+        console.log("═".repeat(70));
+        console.log("✓ Risk Register généré | Total: " + chokePoints.length +
+                    " choke points | DHS: " + dhs.toFixed(1) + "/100");
+        console.log("═".repeat(70));
+    }
+}
+
+// ========== FONCTIONS UTILITAIRES ==========
+
+function truncate(str, maxLen) {
+    if (!str) return "";
+    if (str.length <= maxLen) return str;
+    return str.substring(0, maxLen - 2) + "..";
+}
+
+function getCritSymbol(criticality) {
+    switch(criticality) {
+        case "CRITIQUE": return "🔴 CRI";
+        case "ELEVE": return "🟠 ELE";
+        case "MOYEN": return "🟡 MOY";
+        case "ACCEPTABLE": return "🟢 ACC";
+        default: return "⚪ ???";
+    }
+}
+
+function getNextQuarterReview() {
+    var today = new Date();
+    var month = today.getMonth();
+    var year = today.getFullYear();
+
+    // Déterminer le prochain trimestre
+    var nextQuarter;
+    if (month < 3) {
+        nextQuarter = new Date(year, 3, 1);  // Q2 (Avril)
+    } else if (month < 6) {
+        nextQuarter = new Date(year, 6, 1);  // Q3 (Juillet)
+    } else if (month < 9) {
+        nextQuarter = new Date(year, 9, 1);  // Q4 (Octobre)
+    } else {
+        nextQuarter = new Date(year + 1, 0, 1);  // Q1 (Janvier année suivante)
+    }
+
+    return nextQuarter.toISOString().split('T')[0];
+}

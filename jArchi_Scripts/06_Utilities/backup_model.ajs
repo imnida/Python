@@ -1,0 +1,74 @@
+/*
+ * Backup Model Metadata
+ *
+ * Creates a text-based backup of model metadata
+ * This is NOT a full model export, but captures key information
+ * that can be useful for documentation or recovery.
+ */
+
+console.log("Creating Model Backup...\n");
+
+var model = $("model").first();
+
+if (!model) {
+    console.log("No model found.");
+} else {
+    var timestamp = new Date().toISOString().replace(/:/g, '-').split('.')[0];
+
+    console.log("=" .repeat(60));
+    console.log("MODEL BACKUP - " + timestamp);
+    console.log("=" .repeat(60));
+
+    console.log("\n[MODEL INFORMATION]");
+    console.log("Name: " + model.name);
+    console.log("Purpose: " + (model.purpose || ""));
+    console.log("Documentation: " + (model.documentation || ""));
+
+    console.log("\n[STATISTICS]");
+    console.log("Total Elements: " + $("element").size());
+    console.log("Total Relationships: " + $("relationship").size());
+    console.log("Total Views: " + $("view").size());
+
+    console.log("\n[ELEMENTS]");
+    $("element").each(function(elem) {
+        console.log("\nElement: " + elem.name);
+        console.log("  ID: " + elem.id);
+        console.log("  Type: " + elem.type);
+
+        if (elem.documentation) {
+            console.log("  Documentation: " + elem.documentation.substring(0, 100));
+        }
+
+        var props = elem.prop();
+        var propKeys = Object.keys(props);
+        if (propKeys.length > 0) {
+            console.log("  Properties:");
+            propKeys.forEach(function(key) {
+                console.log("    " + key + ": " + props[key]);
+            });
+        }
+
+        // Relationships
+        var outRels = $(elem).outRels();
+        if (outRels.size() > 0) {
+            console.log("  Outgoing Relationships:");
+            outRels.each(function(rel) {
+                console.log("    → " + rel.type + " → " + rel.target.name);
+            });
+        }
+    });
+
+    console.log("\n[VIEWS]");
+    $("view").each(function(view) {
+        console.log("\nView: " + view.name);
+        console.log("  ID: " + view.id);
+        console.log("  Type: " + view.type);
+        console.log("  Elements: " + $(view).find("element").size());
+        console.log("  Relationships: " + $(view).find("relationship").size());
+    });
+
+    console.log("\n" + "=" .repeat(60));
+    console.log("✓ Backup Complete!");
+    console.log("Copy the output above to save as a text file");
+    console.log("=" .repeat(60));
+}

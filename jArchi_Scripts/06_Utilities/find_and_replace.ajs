@@ -1,0 +1,86 @@
+/*
+ * Find and Replace
+ *
+ * Search and replace text across:
+ * - Element names
+ * - Documentation
+ * - Property values
+ */
+
+console.log("Find and Replace Tool...\n");
+
+var model = $("model").first();
+
+if (!model) {
+    console.log("No model found.");
+} else {
+    // Configuration
+    var config = {
+        findText: "System",
+        replaceText: "Platform",
+        searchIn: ["names", "documentation", "properties"], // What to search in
+        caseSensitive: false,
+        wholeWord: false
+    };
+
+    console.log("Searching for: '" + config.findText + "'");
+    console.log("Replacing with: '" + config.replaceText + "'");
+    console.log("Case sensitive: " + config.caseSensitive);
+    console.log("Whole word: " + config.wholeWord);
+    console.log("=" .repeat(60));
+
+    var flags = config.caseSensitive ? "g" : "gi";
+    var pattern = config.wholeWord ?
+        new RegExp("\\b" + config.findText + "\\b", flags) :
+        new RegExp(config.findText, flags);
+
+    var replacements = {
+        names: 0,
+        documentation: 0,
+        properties: 0
+    };
+
+    $("element").each(function(elem) {
+        // Search in names
+        if (config.searchIn.indexOf("names") !== -1) {
+            if (pattern.test(elem.name)) {
+                var oldName = elem.name;
+                elem.name = elem.name.replace(pattern, config.replaceText);
+                console.log("NAME: " + oldName + " → " + elem.name);
+                replacements.names++;
+            }
+        }
+
+        // Search in documentation
+        if (config.searchIn.indexOf("documentation") !== -1) {
+            if (elem.documentation && pattern.test(elem.documentation)) {
+                elem.documentation = elem.documentation.replace(pattern, config.replaceText);
+                console.log("DOC: " + elem.name + " (documentation updated)");
+                replacements.documentation++;
+            }
+        }
+
+        // Search in properties
+        if (config.searchIn.indexOf("properties") !== -1) {
+            var props = elem.prop();
+            for (var key in props) {
+                var value = props[key];
+                if (pattern.test(value)) {
+                    var newValue = value.replace(pattern, config.replaceText);
+                    elem.prop(key, newValue);
+                    console.log("PROP: " + elem.name + "." + key + " = " + newValue);
+                    replacements.properties++;
+                }
+            }
+        }
+    });
+
+    console.log("\n" + "=" .repeat(60));
+    console.log("✓ Find and Replace Complete!");
+    console.log("  Names updated: " + replacements.names);
+    console.log("  Documentation updated: " + replacements.documentation);
+    console.log("  Properties updated: " + replacements.properties);
+    console.log("  Total replacements: " +
+        (replacements.names + replacements.documentation + replacements.properties));
+    console.log("=" .repeat(60));
+}

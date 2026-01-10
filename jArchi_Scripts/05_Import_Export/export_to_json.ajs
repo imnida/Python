@@ -1,0 +1,91 @@
+/*
+ * Export Model to JSON
+ *
+ * Exports the entire model structure to JSON format
+ * including elements, relationships, and properties.
+ */
+
+console.log("Exporting model to JSON...\n");
+
+var model = $("model").first();
+
+if (!model) {
+    console.log("No model found.");
+} else {
+    var exportData = {
+        model: {
+            name: model.name,
+            purpose: model.purpose,
+            documentation: model.documentation
+        },
+        elements: [],
+        relationships: [],
+        views: []
+    };
+
+    // Export elements
+    $("element").each(function(elem) {
+        var properties = {};
+        var props = elem.prop();
+        for (var key in props) {
+            properties[key] = props[key];
+        }
+
+        exportData.elements.push({
+            id: elem.id,
+            name: elem.name,
+            type: elem.type,
+            documentation: elem.documentation || "",
+            properties: properties
+        });
+    });
+
+    // Export relationships
+    $("relationship").each(function(rel) {
+        exportData.relationships.push({
+            id: rel.id,
+            name: rel.name || "",
+            type: rel.type,
+            source: rel.source.id,
+            target: rel.target.id,
+            documentation: rel.documentation || ""
+        });
+    });
+
+    // Export views (metadata only)
+    $("view").each(function(view) {
+        var viewElements = [];
+        $(view).find("element").each(function(ve) {
+            viewElements.push({
+                elementId: ve.concept.id,
+                x: ve.bounds.x,
+                y: ve.bounds.y,
+                width: ve.bounds.width,
+                height: ve.bounds.height
+            });
+        });
+
+        exportData.views.push({
+            id: view.id,
+            name: view.name,
+            type: view.type,
+            documentation: view.documentation || "",
+            elements: viewElements
+        });
+    });
+
+    // Convert to JSON
+    var json = JSON.stringify(exportData, null, 2);
+
+    console.log("=".repeat(60));
+    console.log("JSON EXPORT");
+    console.log("=".repeat(60));
+    console.log(json);
+    console.log("=".repeat(60));
+
+    console.log("\n✓ Export complete!");
+    console.log("Elements: " + exportData.elements.length);
+    console.log("Relationships: " + exportData.relationships.length);
+    console.log("Views: " + exportData.views.length);
+    console.log("\nCopy the JSON output above to a file.");
+}

@@ -1,0 +1,279 @@
+/*
+ * Définir des Traductions
+ *
+ * Description : Définit les traductions pour les éléments sélectionnés
+ * Auteur : Constitutional AI Framework
+ * Date : 2026-01-10
+ * Version : 1.0
+ *
+ * Intégration Constitutional AI :
+ *   - Traçabilité : OUI (préserve les relations)
+ *   - Falsifiabilité : NON (métadonnées)
+ *   - Choke Points : NON (documentation)
+ *
+ * Usage :
+ *   1. Sélectionner un ou plusieurs éléments dans une vue
+ *   2. Configurer les traductions dans la section TRANSLATIONS
+ *   3. Exécuter le script
+ */
+
+console.clear();
+console.show();
+
+// ============================================================================
+// CONFIGURATION DES TRADUCTIONS
+// ============================================================================
+
+var config = {
+    // Mode de fonctionnement
+    mode: "interactive", // "interactive" ou "batch"
+
+    // Langue par défaut (pour vérification)
+    defaultLanguage: "fr",
+
+    // Traductions à appliquer
+    // Format: { "Nom original": { lang: "traduction", ... } }
+    translations: {
+        // Exemple 1: Acteur métier
+        "Visa / Mastercard": {
+            en: "Visa / Mastercard",
+            de: "Visa / Mastercard",
+            es: "Visa / Mastercard",
+            description_fr: "Duopole des réseaux de paiement par carte (CP Score: 86/100 CRITIQUE)",
+            description_en: "Card payment network duopoly (CP Score: 86/100 CRITICAL)",
+            description_de: "Kartenzahlungsnetzwerk-Duopol (CP-Bewertung: 86/100 KRITISCH)",
+            description_es: "Duopolio de redes de pago con tarjeta (Puntuación CP: 86/100 CRÍTICO)"
+        },
+
+        // Exemple 2: Principe stratégique
+        "Trust (Confiance)": {
+            en: "Trust",
+            de: "Vertrauen",
+            es: "Confianza",
+            it: "Fiducia",
+            description_fr: "Principe fondamental: la confiance est le socle de tout échange de valeur",
+            description_en: "Core principle: trust is the foundation of any value exchange",
+            description_de: "Grundprinzip: Vertrauen ist die Grundlage jedes Werteaustauschs",
+            description_es: "Principio fundamental: la confianza es la base de todo intercambio de valor"
+        },
+
+        // Exemple 3: Service applicatif
+        "Payment Orchestration": {
+            en: "Payment Orchestration",
+            de: "Zahlungsorchestrierung",
+            es: "Orquestación de Pagos",
+            it: "Orchestrazione dei Pagamenti",
+            pt: "Orquestração de Pagamentos",
+            description_fr: "Service central de routage et d'optimisation des paiements multi-rail",
+            description_en: "Central service for multi-rail payment routing and optimization",
+            description_de: "Zentraler Dienst für Multi-Rail-Zahlungsrouting und -optimierung",
+            description_es: "Servicio central para enrutamiento y optimización de pagos multi-rail"
+        }
+
+        // Ajoutez vos traductions ici...
+    },
+
+    // Options
+    updateOnlyIfEmpty: false,  // true = ne pas écraser les traductions existantes
+    addTranslationDate: true,  // Ajouter ML_Translation_Date
+    validateFormat: true       // Vérifier que les propriétés ML_* existent
+};
+
+// ============================================================================
+// VARIABLES GLOBALES
+// ============================================================================
+
+var stats = {
+    elementsProcessed: 0,
+    translationsSet: 0,
+    skipped: 0,
+    errors: 0,
+    warnings: 0
+};
+
+var supportedLanguages = ["fr", "en", "de", "es", "it", "pt", "nl", "zh", "ja", "ar"];
+
+// ============================================================================
+// FONCTIONS UTILITAIRES
+// ============================================================================
+
+function log(level, message) {
+    var prefix = {
+        "INFO": "ℹ️  ",
+        "SUCCESS": "✅ ",
+        "WARNING": "⚠️  ",
+        "ERROR": "❌ "
+    }[level] || "";
+    console.log(prefix + message);
+}
+
+function isMultilingualEnabled(obj) {
+    return obj.prop("ML_Default_Language") !== null;
+}
+
+function setTranslation(obj, langCode, translatedName, translatedDesc) {
+    var modified = false;
+
+    // Définir le nom traduit
+    if (translatedName) {
+        var nameProp = "ML_Name_" + langCode;
+        var existingName = obj.prop(nameProp);
+
+        if (!config.updateOnlyIfEmpty || !existingName || existingName === "") {
+            obj.prop(nameProp, translatedName);
+            stats.translationsSet++;
+            modified = true;
+        } else {
+            log("INFO", "   • " + langCode.toUpperCase() + " (nom): ignoré (déjà défini)");
+            stats.skipped++;
+        }
+    }
+
+    // Définir la description traduite
+    if (translatedDesc) {
+        var descProp = "ML_Description_" + langCode;
+        var existingDesc = obj.prop(descProp);
+
+        if (!config.updateOnlyIfEmpty || !existingDesc || existingDesc === "") {
+            obj.prop(descProp, translatedDesc);
+            stats.translationsSet++;
+            modified = true;
+        } else {
+            log("INFO", "   • " + langCode.toUpperCase() + " (desc): ignoré (déjà défini)");
+            stats.skipped++;
+        }
+    }
+
+    return modified;
+}
+
+function applyTranslations(obj) {
+    var objName = obj.name;
+
+    // Vérifier si des traductions existent pour cet élément
+    if (!config.translations[objName]) {
+        log("WARNING", "Aucune traduction configurée pour: '" + objName + "'");
+        stats.warnings++;
+        return;
+    }
+
+    // Vérifier que l'objet est initialisé pour le multilinguisme
+    if (config.validateFormat && !isMultilingualEnabled(obj)) {
+        log("WARNING", "'" + objName + "' n'est pas initialisé pour le multilinguisme. Exécutez init_multilingual_properties.ajs d'abord.");
+        stats.warnings++;
+        return;
+    }
+
+    log("INFO", "");
+    log("INFO", "📝 Traduction de: " + objName);
+
+    var translations = config.translations[objName];
+    var anyModified = false;
+
+    // Parcourir toutes les traductions définies
+    for (var key in translations) {
+        var value = translations[key];
+
+        // Détecter si c'est un nom ou une description
+        if (key.indexOf("description_") === 0) {
+            // Description dans une langue
+            var langCode = key.substring(12); // Après "description_"
+            if (supportedLanguages.indexOf(langCode) !== -1) {
+                var modified = setTranslation(obj, langCode, null, value);
+                if (modified) {
+                    log("SUCCESS", "   ✅ " + langCode.toUpperCase() + " (description): défini");
+                    anyModified = true;
+                }
+            }
+        } else {
+            // Nom dans une langue
+            var langCode = key;
+            if (supportedLanguages.indexOf(langCode) !== -1) {
+                var modified = setTranslation(obj, langCode, value, null);
+                if (modified) {
+                    log("SUCCESS", "   ✅ " + langCode.toUpperCase() + " (nom): " + value);
+                    anyModified = true;
+                }
+            }
+        }
+    }
+
+    // Ajouter la date de traduction
+    if (anyModified && config.addTranslationDate) {
+        obj.prop("ML_Translation_Date", new Date().toISOString().split('T')[0]);
+    }
+
+    stats.elementsProcessed++;
+}
+
+// ============================================================================
+// TRAITEMENT PRINCIPAL
+// ============================================================================
+
+function processSelection() {
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "  DÉFINITION DES TRADUCTIONS");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "");
+
+    // Récupérer la sélection
+    var selection = $(selection);
+
+    if (!selection || selection.size() === 0) {
+        log("ERROR", "Aucun élément sélectionné.");
+        log("INFO", "");
+        log("INFO", "💡 Instructions:");
+        log("INFO", "   1. Sélectionnez un ou plusieurs éléments dans une vue");
+        log("INFO", "   2. Configurez les traductions dans config.translations");
+        log("INFO", "   3. Exécutez ce script");
+        return;
+    }
+
+    log("INFO", "📊 " + selection.size() + " élément(s) sélectionné(s)");
+    log("INFO", "");
+
+    // Traiter chaque élément sélectionné
+    selection.each(function(obj) {
+        try {
+            applyTranslations(obj);
+        } catch (error) {
+            log("ERROR", "Erreur lors du traitement de '" + obj.name + "': " + error);
+            stats.errors++;
+        }
+    });
+}
+
+function displaySummary() {
+    log("INFO", "");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "  RÉSUMÉ");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "");
+    log("INFO", "📊 Statistiques:");
+    log("INFO", "   • Éléments traités: " + stats.elementsProcessed);
+    log("INFO", "   • Traductions définies: " + stats.translationsSet);
+    log("INFO", "   • Ignorées (déjà définies): " + stats.skipped);
+    log("INFO", "   • Avertissements: " + stats.warnings);
+
+    if (stats.errors > 0) {
+        log("ERROR", "   • Erreurs: " + stats.errors);
+    }
+
+    log("INFO", "");
+    log("INFO", "📝 Prochaines étapes:");
+    log("INFO", "   1. Vérifier les traductions: generate_multilingual_report.ajs");
+    log("INFO", "   2. Basculer la langue: switch_language.ajs");
+    log("INFO", "");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+}
+
+// ============================================================================
+// EXÉCUTION
+// ============================================================================
+
+try {
+    processSelection();
+    displaySummary();
+} catch (error) {
+    log("ERROR", "Erreur fatale: " + error);
+}

@@ -1,0 +1,153 @@
+/*
+ * Generate Model Report
+ *
+ * Creates a comprehensive report of the model including:
+ * - Element counts by type
+ * - Relationship counts
+ * - View statistics
+ * - Property usage
+ */
+
+console.log("Generating Model Report...\n");
+console.log("=" .repeat(60));
+
+var model = $("model").first();
+
+if (!model) {
+    console.log("No model found.");
+} else {
+    console.log("MODEL: " + model.name);
+    console.log("=" .repeat(60));
+
+    // 1. Element Statistics
+    console.log("\n📊 ELEMENT STATISTICS");
+    console.log("-" .repeat(60));
+
+    var elementTypes = {};
+    $("element").each(function(elem) {
+        var type = elem.type;
+        elementTypes[type] = (elementTypes[type] || 0) + 1;
+    });
+
+    var sortedTypes = Object.keys(elementTypes).sort(function(a, b) {
+        return elementTypes[b] - elementTypes[a];
+    });
+
+    sortedTypes.forEach(function(type) {
+        console.log("  " + type.padEnd(40) + elementTypes[type]);
+    });
+
+    var totalElements = $("element").size();
+    console.log("  " + "-".repeat(40));
+    console.log("  TOTAL ELEMENTS".padEnd(40) + totalElements);
+
+    // 2. Relationship Statistics
+    console.log("\n🔗 RELATIONSHIP STATISTICS");
+    console.log("-" .repeat(60));
+
+    var relationshipTypes = {};
+    $("relationship").each(function(rel) {
+        var type = rel.type;
+        relationshipTypes[type] = (relationshipTypes[type] || 0) + 1;
+    });
+
+    var sortedRelTypes = Object.keys(relationshipTypes).sort(function(a, b) {
+        return relationshipTypes[b] - relationshipTypes[a];
+    });
+
+    sortedRelTypes.forEach(function(type) {
+        console.log("  " + type.padEnd(40) + relationshipTypes[type]);
+    });
+
+    var totalRelationships = $("relationship").size();
+    console.log("  " + "-".repeat(40));
+    console.log("  TOTAL RELATIONSHIPS".padEnd(40) + totalRelationships);
+
+    // 3. View Statistics
+    console.log("\n👁 VIEW STATISTICS");
+    console.log("-" .repeat(60));
+
+    var views = $("view");
+    console.log("  Total Views: " + views.size());
+
+    var viewTypes = {};
+    views.each(function(view) {
+        var type = view.type || "archimate-diagram-model";
+        viewTypes[type] = (viewTypes[type] || 0) + 1;
+    });
+
+    for (var vType in viewTypes) {
+        console.log("  " + vType.padEnd(40) + viewTypes[vType]);
+    }
+
+    // 4. Layer Distribution
+    console.log("\n📚 LAYER DISTRIBUTION");
+    console.log("-" .repeat(60));
+
+    var layers = {
+        "Business": ["business-actor", "business-role", "business-collaboration",
+                     "business-process", "business-function", "business-service"],
+        "Application": ["application-component", "application-service",
+                        "application-interface", "data-object"],
+        "Technology": ["node", "device", "system-software", "technology-service",
+                       "artifact", "technology-interface"],
+        "Motivation": ["stakeholder", "driver", "assessment", "goal", "outcome",
+                       "principle", "requirement", "constraint"],
+        "Strategy": ["resource", "capability", "course-of-action", "value-stream"],
+        "Implementation": ["work-package", "deliverable", "implementation-event"]
+    };
+
+    for (var layer in layers) {
+        var count = 0;
+        layers[layer].forEach(function(type) {
+            count += elementTypes[type] || 0;
+        });
+        if (count > 0) {
+            console.log("  " + layer.padEnd(40) + count);
+        }
+    }
+
+    // 5. Property Statistics
+    console.log("\n🏷 PROPERTY STATISTICS");
+    console.log("-" .repeat(60));
+
+    var properties = {};
+    $("element").each(function(elem) {
+        var props = elem.prop();
+        for (var key in props) {
+            properties[key] = (properties[key] || 0) + 1;
+        }
+    });
+
+    var sortedProps = Object.keys(properties).sort(function(a, b) {
+        return properties[b] - properties[a];
+    });
+
+    sortedProps.slice(0, 10).forEach(function(prop) {
+        console.log("  " + prop.padEnd(40) + properties[prop]);
+    });
+
+    // 6. Model Health
+    console.log("\n❤️  MODEL HEALTH");
+    console.log("-" .repeat(60));
+
+    var elementsWithoutRels = 0;
+    var elementsNotInViews = 0;
+
+    $("element").each(function(elem) {
+        var rels = $(elem).inRels().size() + $(elem).outRels().size();
+        if (rels === 0) elementsWithoutRels++;
+
+        var inViews = $("view").find(elem).size();
+        if (inViews === 0) elementsNotInViews++;
+    });
+
+    console.log("  Elements without relationships: " + elementsWithoutRels);
+    console.log("  Elements not in views: " + elementsNotInViews);
+
+    var avgRels = totalElements > 0 ? (totalRelationships / totalElements).toFixed(2) : 0;
+    console.log("  Average relationships per element: " + avgRels);
+
+    console.log("\n" + "=" .repeat(60));
+    console.log("✓ Report generation complete!");
+}

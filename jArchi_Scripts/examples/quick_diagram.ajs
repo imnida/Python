@@ -1,0 +1,45 @@
+/*
+ * Quick Diagram Example
+ *
+ * Creates a simple 3-tier architecture diagram quickly.
+ */
+
+console.log("Creating Quick Diagram...");
+
+var model = $("model").first();
+var view = model.createArchimateView("3-Tier Architecture");
+
+// Presentation Layer
+var webApp = model.createObject("application-component", "Web Application");
+var webUI = model.createObject("application-interface", "Web UI");
+
+// Business Layer
+var appServer = model.createObject("application-component", "Application Server");
+var businessLogic = model.createObject("application-service", "Business Logic");
+
+// Data Layer
+var database = model.createObject("node", "Database Server");
+var dataStore = model.createObject("artifact", "Data Store");
+
+// Create relationships
+var r1 = model.createRelationship("composition-relationship", "", webApp, webUI);
+var r2 = model.createRelationship("realization-relationship", "", appServer, businessLogic);
+var r3 = model.createRelationship("serving-relationship", "", businessLogic, webUI);
+var r4 = model.createRelationship("access-relationship", "", appServer, database);
+var r5 = model.createRelationship("assignment-relationship", "", dataStore, database);
+
+// Add to view
+view.add(webApp, 50, 50, 150, 60);
+view.add(webUI, 50, 130, 150, 55);
+view.add(appServer, 250, 50, 150, 60);
+view.add(businessLogic, 250, 130, 150, 55);
+view.add(database, 450, 50, 150, 60);
+view.add(dataStore, 450, 130, 150, 55);
+
+view.add(r1);
+view.add(r2);
+view.add(r3);
+view.add(r4);
+view.add(r5);
+
+console.log("✓ 3-Tier Architecture diagram created!");

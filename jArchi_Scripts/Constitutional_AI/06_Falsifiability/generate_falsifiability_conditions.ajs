@@ -1,0 +1,296 @@
+/*
+ * Generate Falsifiability Conditions (Constitutional Principle #2)
+ *
+ * For each key component, formulate 3 observable and measurable conditions
+ * that, if realized, would invalidate the architecture.
+ *
+ * Example: "If throughput < 50 req/s, the microservices architecture
+ * becomes an anti-pattern (cost/complexity ratio unfavorable)."
+ *
+ * This ensures architectures are FALSIFIABLE (Popper's criterion) rather
+ * than unfalsifiable dogma.
+ *
+ * Output:
+ * - 3 falsifiability conditions per critical component
+ * - Metrics for observation
+ * - Thresholds for invalidation
+ * - Recommendations if conditions are met
+ */
+
+console.log("╔" + "═".repeat(68) + "╗");
+console.log("║ GÉNÉRATION: CONDITIONS DE FALSIFIABILITÉ".padEnd(69) + "║");
+console.log("║ Constitutional AI - Principe #2".padEnd(69) + "║");
+console.log("╚" + "═".repeat(68) + "╝");
+console.log("");
+
+var model = $("model").first();
+
+if (!model) {
+    console.log("❌ Aucun modèle trouvé.");
+} else {
+    console.log("Modèle: " + model.name);
+    console.log("");
+
+    // ========================================
+    // CONFIGURATION
+    // ========================================
+
+    var config = {
+        // Types d'éléments critiques à analyser
+        criticalTypes: [
+            "application-component",
+            "application-service",
+            "technology-service",
+            "node",
+            "business-service"
+        ],
+
+        // Templates de conditions de falsifiabilité
+        templates: {
+            performance: {
+                metric: "Throughput",
+                unit: "req/s",
+                thresholdLow: 50,
+                condition: "Si {metric} < {threshold} {unit}, l'architecture devient inefficace"
+            },
+            latency: {
+                metric: "Latence",
+                unit: "ms",
+                thresholdHigh: 200,
+                condition: "Si {metric} > {threshold} {unit}, l'expérience utilisateur est dégradée"
+            },
+            availability: {
+                metric: "Disponibilité",
+                unit: "%",
+                thresholdLow: 99.9,
+                condition: "Si {metric} < {threshold}{unit}, le SLA est violé"
+            },
+            cost: {
+                metric: "Coût opérationnel",
+                unit: "€/mois",
+                thresholdHigh: 10000,
+                condition: "Si {metric} > {threshold} {unit}, le ROI devient négatif"
+            },
+            adoption: {
+                metric: "Taux d'adoption",
+                unit: "%",
+                thresholdLow: 30,
+                condition: "Si {metric} < {threshold}{unit}, la solution n'est pas viable"
+            },
+            regulatory: {
+                metric: "Conformité réglementaire",
+                unit: "",
+                condition: "Si la régulation {regulation} change, le composant devient illégal"
+            }
+        }
+    };
+
+    // ========================================
+    // COLLECTE DES ÉLÉMENTS CRITIQUES
+    // ========================================
+
+    var criticalElements = [];
+
+    config.criticalTypes.forEach(function(type) {
+        $(type).each(function(elem) {
+            criticalElements.push(elem);
+        });
+    });
+
+    console.log("Éléments critiques identifiés: " + criticalElements.length);
+    console.log("");
+
+    // ========================================
+    // GÉNÉRATION DES CONDITIONS
+    // ========================================
+
+    console.log("═".repeat(70));
+    console.log("CONDITIONS DE FALSIFIABILITÉ GÉNÉRÉES");
+    console.log("═".repeat(70));
+    console.log("");
+
+    criticalElements.forEach(function(elem, index) {
+        console.log((index + 1) + ". " + elem.name.toUpperCase());
+        console.log("   Type: " + elem.type);
+        console.log("   Layer: " + getLayer(elem.type));
+        console.log("");
+
+        // Générer 3 conditions de falsifiabilité
+        var conditions = generateConditions(elem);
+
+        conditions.forEach(function(cond, i) {
+            console.log("   Condition " + (i + 1) + " - " + cond.category.toUpperCase());
+            console.log("   ❌ Si: " + cond.statement);
+            console.log("   📊 Métrique: " + cond.metric + " " + cond.unit);
+            console.log("   🎯 Seuil critique: " + cond.threshold + cond.unit);
+            console.log("   ⚡ Impact: " + cond.impact);
+            console.log("   💡 Recommandation: " + cond.recommendation);
+            console.log("");
+        });
+
+        // Ajouter les conditions comme propriétés
+        elem.prop("Falsifiability_Condition_1", conditions[0].statement);
+        elem.prop("Falsifiability_Condition_2", conditions[1].statement);
+        elem.prop("Falsifiability_Condition_3", conditions[2].statement);
+
+        elem.prop("Falsifiability_Metrics",
+            conditions[0].metric + ", " +
+            conditions[1].metric + ", " +
+            conditions[2].metric);
+
+        console.log("-".repeat(70));
+        console.log("");
+    });
+
+    // ========================================
+    // STATISTIQUES
+    // ========================================
+
+    console.log("═".repeat(70));
+    console.log("STATISTIQUES");
+    console.log("═".repeat(70));
+    console.log("");
+
+    console.log("Total éléments critiques: " + criticalElements.length);
+    console.log("Total conditions générées: " + (criticalElements.length * 3));
+    console.log("");
+
+    // Répartition par catégorie
+    var categories = {
+        performance: 0,
+        latency: 0,
+        availability: 0,
+        cost: 0,
+        adoption: 0,
+        regulatory: 0
+    };
+
+    criticalElements.forEach(function(elem) {
+        var conditions = generateConditions(elem);
+        conditions.forEach(function(cond) {
+            categories[cond.category]++;
+        });
+    });
+
+    console.log("Répartition par catégorie:");
+    for (var cat in categories) {
+        console.log("  " + cat.padEnd(15) + ": " + categories[cat]);
+    }
+
+    console.log("");
+    console.log("═".repeat(70));
+    console.log("✓ Génération terminée");
+    console.log("");
+    console.log("📋 PROCHAINES ÉTAPES:");
+    console.log("1. Mettre en place le monitoring des métriques identifiées");
+    console.log("2. Définir les seuils d'alerte (warning, critical)");
+    console.log("3. Créer des dashboards de surveillance");
+    console.log("4. Documenter les actions correctives si seuils dépassés");
+    console.log("═".repeat(70));
+}
+
+// ========================================
+// FONCTIONS UTILITAIRES
+// ========================================
+
+function getLayer(type) {
+    if (type.indexOf("business-") === 0) return "Business";
+    if (type.indexOf("application-") === 0) return "Application";
+    if (type.indexOf("technology-") === 0 || type === "node" || type === "device") return "Technology";
+    return "Unknown";
+}
+
+function generateConditions(element) {
+    var conditions = [];
+
+    // Déterminer les conditions pertinentes selon le type
+    var layer = getLayer(element.type);
+
+    if (layer === "Technology") {
+        // Technology: Performance, Availability, Cost
+        conditions.push(createCondition(element, "performance"));
+        conditions.push(createCondition(element, "availability"));
+        conditions.push(createCondition(element, "cost"));
+
+    } else if (layer === "Application") {
+        // Application: Latency, Adoption, Performance
+        conditions.push(createCondition(element, "latency"));
+        conditions.push(createCondition(element, "adoption"));
+        conditions.push(createCondition(element, "performance"));
+
+    } else if (layer === "Business") {
+        // Business: Adoption, Cost, Regulatory
+        conditions.push(createCondition(element, "adoption"));
+        conditions.push(createCondition(element, "cost"));
+        conditions.push(createCondition(element, "regulatory"));
+    }
+
+    return conditions;
+}
+
+function createCondition(element, category) {
+    var template = config.templates[category];
+    var condition = {};
+
+    condition.category = category;
+    condition.metric = template.metric;
+    condition.unit = template.unit;
+
+    // Déterminer le seuil (peut être adapté selon l'élément)
+    if (template.thresholdLow) {
+        condition.threshold = template.thresholdLow;
+        condition.operator = "<";
+    } else if (template.thresholdHigh) {
+        condition.threshold = template.thresholdHigh;
+        condition.operator = ">";
+    } else {
+        condition.threshold = "N/A";
+        condition.operator = "!=";
+    }
+
+    // Construire la déclaration
+    if (category === "regulatory") {
+        condition.statement = "Si la régulation (RGPD/DORA/etc.) change sur les données, " +
+                              element.name + " devient non-conforme ou illégal";
+        condition.regulation = "RGPD/DORA";
+    } else {
+        condition.statement = template.condition
+            .replace("{metric}", condition.metric)
+            .replace("{threshold}", condition.threshold)
+            .replace("{unit}", condition.unit);
+    }
+
+    // Impact
+    condition.impact = getImpact(category);
+
+    // Recommandation
+    condition.recommendation = getRecommendation(element, category);
+
+    return condition;
+}
+
+function getImpact(category) {
+    var impacts = {
+        performance: "Service dégradé, perte d'utilisateurs (>30% churn)",
+        latency: "Expérience utilisateur inacceptable, abandon (>60%)",
+        availability: "Violation SLA, pénalités contractuelles, perte de confiance",
+        cost: "ROI négatif, projet non rentable, arrêt requis",
+        adoption: "Solution non viable, échec commercial, refonte nécessaire",
+        regulatory: "Illégalité, amendes (CNIL/BCE), arrêt forcé du service"
+    };
+
+    return impacts[category] || "Impact critique sur la viabilité";
+}
+
+function getRecommendation(element, category) {
+    var recommendations = {
+        performance: "Optimiser algorithmes, scaler horizontalement, cache distribué",
+        latency: "CDN, edge computing, compression, optimisation réseau",
+        availability: "Architecture redondante, multi-AZ, failover automatique",
+        cost: "Revoir architecture (serverless?), optimiser ressources, négocier tarifs",
+        adoption: "UX research, formation utilisateurs, change management renforcé",
+        regulatory: "Audit légal proactif, architecture modulaire pour adaptation rapide"
+    };
+
+    return recommendations[category] || "Revoir la conception de " + element.name;
+}

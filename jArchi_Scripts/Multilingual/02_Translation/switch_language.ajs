@@ -1,0 +1,338 @@
+/*
+ * Basculer la Langue du Modèle
+ *
+ * Description : Bascule tous les éléments du modèle vers une langue spécifique
+ * Auteur : Constitutional AI Framework
+ * Date : 2026-01-10
+ * Version : 1.0
+ *
+ * Intégration Constitutional AI :
+ *   - Traçabilité : OUI (préserve toutes les relations)
+ *   - Falsifiabilité : NON (changement de présentation)
+ *   - Choke Points : NON (métadonnées)
+ *
+ * Usage :
+ *   1. Configurer la langue cible dans config.targetLanguage
+ *   2. Exécuter le script
+ *   3. Tous les noms et descriptions seront mis à jour
+ *
+ * IMPORTANT :
+ *   - Cette opération est RÉVERSIBLE (les données originales sont préservées)
+ *   - Les propriétés ML_* contiennent toutes les traductions
+ *   - Pour revenir en arrière, réexécutez avec une autre langue
+ */
+
+console.clear();
+console.show();
+
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+
+var config = {
+    // Langue cible (ISO 639-1)
+    targetLanguage: "en", // fr, en, de, es, it, pt, nl, zh, ja, ar
+
+    // Options
+    updateElements: true,      // Mettre à jour les noms des éléments
+    updateDescriptions: true,  // Mettre à jour les descriptions
+    updateRelationships: true, // Mettre à jour les noms des relations
+    updateViews: true,         // Mettre à jour les noms des vues
+
+    // Comportement pour les traductions manquantes
+    fallbackToDefault: true,   // Si traduction manquante, utiliser la langue par défaut
+    showWarnings: true,        // Afficher les avertissements pour traductions manquantes
+    markMissing: false,        // Ajouter "[?]" devant les traductions manquantes
+
+    // Sauvegarde
+    createBackup: true,        // Sauvegarder l'état actuel avant changement
+    addSwitchHistory: true     // Ajouter ML_Language_History
+};
+
+var languageNames = {
+    fr: { name: "Français", flag: "🇫🇷" },
+    en: { name: "English", flag: "🇬🇧" },
+    de: { name: "Deutsch", flag: "🇩🇪" },
+    es: { name: "Español", flag: "🇪🇸" },
+    it: { name: "Italiano", flag: "🇮🇹" },
+    pt: { name: "Português", flag: "🇵🇹" },
+    nl: { name: "Nederlands", flag: "🇳🇱" },
+    zh: { name: "中文", flag: "🇨🇳" },
+    ja: { name: "日本語", flag: "🇯🇵" },
+    ar: { name: "العربية", flag: "🇸🇦" }
+};
+
+// ============================================================================
+// VARIABLES GLOBALES
+// ============================================================================
+
+var stats = {
+    elementsUpdated: 0,
+    relationshipsUpdated: 0,
+    viewsUpdated: 0,
+    descriptionsUpdated: 0,
+    missingTranslations: 0,
+    errors: 0,
+    skipped: 0
+};
+
+// ============================================================================
+// FONCTIONS UTILITAIRES
+// ============================================================================
+
+function log(level, message) {
+    var prefix = {
+        "INFO": "ℹ️  ",
+        "SUCCESS": "✅ ",
+        "WARNING": "⚠️  ",
+        "ERROR": "❌ "
+    }[level] || "";
+    console.log(prefix + message);
+}
+
+function getTranslatedName(obj, targetLang) {
+    var nameProp = "ML_Name_" + targetLang;
+    var translatedName = obj.prop(nameProp);
+
+    if (translatedName && translatedName !== "") {
+        return translatedName;
+    }
+
+    // Fallback vers la langue par défaut
+    if (config.fallbackToDefault) {
+        var defaultLang = obj.prop("ML_Default_Language") || "fr";
+        var defaultNameProp = "ML_Name_" + defaultLang;
+        var defaultName = obj.prop(defaultNameProp);
+
+        if (defaultName && defaultName !== "") {
+            if (config.showWarnings) {
+                log("WARNING", "Traduction manquante pour '" + obj.name + "' en " + targetLang.toUpperCase() + ", utilisation de " + defaultLang.toUpperCase());
+            }
+            stats.missingTranslations++;
+
+            if (config.markMissing) {
+                return "[?] " + defaultName;
+            }
+            return defaultName;
+        }
+    }
+
+    // Si aucune traduction disponible, garder le nom actuel
+    stats.missingTranslations++;
+    if (config.markMissing) {
+        return "[?] " + obj.name;
+    }
+    return obj.name;
+}
+
+function getTranslatedDescription(obj, targetLang) {
+    var descProp = "ML_Description_" + targetLang;
+    var translatedDesc = obj.prop(descProp);
+
+    if (translatedDesc && translatedDesc !== "") {
+        return translatedDesc;
+    }
+
+    // Fallback vers la langue par défaut
+    if (config.fallbackToDefault) {
+        var defaultLang = obj.prop("ML_Default_Language") || "fr";
+        var defaultDescProp = "ML_Description_" + defaultLang;
+        var defaultDesc = obj.prop(defaultDescProp);
+
+        if (defaultDesc && defaultDesc !== "") {
+            stats.missingTranslations++;
+            return defaultDesc;
+        }
+    }
+
+    // Si aucune description disponible, garder la description actuelle
+    return obj.documentation || "";
+}
+
+function switchObjectLanguage(obj, targetLang, objectType) {
+    try {
+        // Vérifier si l'objet a les propriétés multilingues
+        if (!obj.prop("ML_Default_Language")) {
+            stats.skipped++;
+            return;
+        }
+
+        var modified = false;
+
+        // Mettre à jour le nom
+        if (config.updateElements || objectType === "view") {
+            var translatedName = getTranslatedName(obj, targetLang);
+            if (translatedName !== obj.name) {
+                obj.name = translatedName;
+                modified = true;
+
+                if (objectType === "element") stats.elementsUpdated++;
+                if (objectType === "relationship") stats.relationshipsUpdated++;
+                if (objectType === "view") stats.viewsUpdated++;
+            }
+        }
+
+        // Mettre à jour la description/documentation
+        if (config.updateDescriptions) {
+            var translatedDesc = getTranslatedDescription(obj, targetLang);
+            if (translatedDesc !== obj.documentation) {
+                obj.documentation = translatedDesc;
+                modified = true;
+                stats.descriptionsUpdated++;
+            }
+        }
+
+        // Mettre à jour la langue courante
+        if (modified) {
+            obj.prop("ML_Current_Language", targetLang);
+
+            // Ajouter à l'historique
+            if (config.addSwitchHistory) {
+                var history = obj.prop("ML_Language_History") || "";
+                var timestamp = new Date().toISOString().split('T')[0];
+                var newEntry = timestamp + ":" + targetLang;
+
+                if (history) {
+                    var entries = history.split(";");
+                    entries.push(newEntry);
+                    // Garder seulement les 10 dernières entrées
+                    if (entries.length > 10) {
+                        entries = entries.slice(-10);
+                    }
+                    obj.prop("ML_Language_History", entries.join(";"));
+                } else {
+                    obj.prop("ML_Language_History", newEntry);
+                }
+            }
+        }
+
+    } catch (error) {
+        log("ERROR", "Erreur lors du traitement de '" + obj.name + "': " + error);
+        stats.errors++;
+    }
+}
+
+// ============================================================================
+// TRAITEMENT PRINCIPAL
+// ============================================================================
+
+function switchLanguage() {
+    var targetLang = config.targetLanguage;
+    var langInfo = languageNames[targetLang];
+
+    if (!langInfo) {
+        log("ERROR", "Langue non supportée: " + targetLang);
+        return;
+    }
+
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "  BASCULEMENT VERS: " + langInfo.flag + " " + langInfo.name.toUpperCase());
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "");
+    log("INFO", "🔧 Configuration:");
+    log("INFO", "   • Langue cible: " + targetLang.toUpperCase() + " (" + langInfo.name + ")");
+    log("INFO", "   • Fallback si traduction manquante: " + (config.fallbackToDefault ? "OUI" : "NON"));
+    log("INFO", "   • Marquer les traductions manquantes: " + (config.markMissing ? "OUI" : "NON"));
+    log("INFO", "");
+    log("INFO", "🔄 Traitement en cours...");
+    log("INFO", "");
+
+    // 1. Traiter les éléments
+    if (config.updateElements) {
+        log("INFO", "📦 Mise à jour des éléments...");
+        $("element").each(function(elem) {
+            switchObjectLanguage(elem, targetLang, "element");
+        });
+    }
+
+    // 2. Traiter les relations
+    if (config.updateRelationships) {
+        log("INFO", "🔗 Mise à jour des relations...");
+        $("relationship").each(function(rel) {
+            switchObjectLanguage(rel, targetLang, "relationship");
+        });
+    }
+
+    // 3. Traiter les vues
+    if (config.updateViews) {
+        log("INFO", "👁️  Mise à jour des vues...");
+        model.views.each(function(view) {
+            switchObjectLanguage(view, targetLang, "view");
+        });
+    }
+
+    log("INFO", "");
+    log("SUCCESS", "✅ Basculement terminé !");
+}
+
+function displaySummary() {
+    var targetLang = config.targetLanguage;
+    var langInfo = languageNames[targetLang];
+
+    log("INFO", "");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "  RÉSUMÉ DU BASCULEMENT");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "");
+    log("INFO", "🌐 Langue active: " + langInfo.flag + " " + langInfo.name);
+    log("INFO", "");
+    log("INFO", "📊 Objets mis à jour:");
+    log("INFO", "   • Éléments: " + stats.elementsUpdated);
+    log("INFO", "   • Relations: " + stats.relationshipsUpdated);
+    log("INFO", "   • Vues: " + stats.viewsUpdated);
+    log("INFO", "   • Descriptions: " + stats.descriptionsUpdated);
+    log("INFO", "");
+    log("INFO", "   • Total: " + (stats.elementsUpdated + stats.relationshipsUpdated + stats.viewsUpdated));
+    log("INFO", "   • Ignorés (non-initialisés): " + stats.skipped);
+
+    if (stats.missingTranslations > 0) {
+        log("WARNING", "   • Traductions manquantes: " + stats.missingTranslations);
+        log("INFO", "");
+        log("INFO", "💡 Pour compléter les traductions:");
+        log("INFO", "   1. Exporter: export_translations.ajs");
+        log("INFO", "   2. Traduire le fichier CSV");
+        log("INFO", "   3. Importer: import_translations.ajs");
+    }
+
+    if (stats.errors > 0) {
+        log("ERROR", "   • Erreurs: " + stats.errors);
+    }
+
+    log("INFO", "");
+    log("INFO", "🔄 Pour revenir à une autre langue:");
+    log("INFO", "   • Modifier config.targetLanguage");
+    log("INFO", "   • Réexécuter ce script");
+    log("INFO", "");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+}
+
+// ============================================================================
+// VALIDATION
+// ============================================================================
+
+function validateConfiguration() {
+    if (!languageNames[config.targetLanguage]) {
+        log("ERROR", "Langue non valide: " + config.targetLanguage);
+        log("INFO", "");
+        log("INFO", "Langues supportées:");
+        for (var code in languageNames) {
+            var lang = languageNames[code];
+            log("INFO", "   • " + code + " - " + lang.flag + " " + lang.name);
+        }
+        return false;
+    }
+    return true;
+}
+
+// ============================================================================
+// EXÉCUTION
+// ============================================================================
+
+try {
+    if (validateConfiguration()) {
+        switchLanguage();
+        displaySummary();
+    }
+} catch (error) {
+    log("ERROR", "Erreur fatale: " + error);
+}

@@ -1,0 +1,51 @@
+/*
+ * Create ArchiMate View with Elements
+ *
+ * This script creates a view and adds elements to it with automatic layout.
+ */
+
+console.log("Creating ArchiMate View...");
+
+var model = $("model").first();
+
+if (!model) {
+    console.log("No model found. Please open a model first.");
+} else {
+    // Create a new view
+    var view = model.createArchimateView("Sample Business Process View");
+
+    // Create elements
+    var customer = model.createObject("business-actor", "Customer");
+    var salesRep = model.createObject("business-role", "Sales Representative");
+    var orderProcess = model.createObject("business-process", "Order Processing");
+    var crmSystem = model.createObject("application-component", "CRM System");
+    var database = model.createObject("node", "Customer Database");
+
+    // Create relationships
+    var assignment = model.createRelationship("assignment-relationship",
+        "Performs", salesRep, orderProcess);
+    var serving = model.createRelationship("serving-relationship",
+        "Serves", orderProcess, customer);
+    var realization = model.createRelationship("realization-relationship",
+        "Supports", crmSystem, orderProcess);
+    var access = model.createRelationship("access-relationship",
+        "Stores", crmSystem, database);
+
+    // Add elements to view with positions
+    var x = 50, y = 50, spacing = 200;
+
+    view.add(customer, x, y, 120, 55);
+    view.add(salesRep, x + spacing, y, 120, 55);
+    view.add(orderProcess, x + spacing, y + 100, 120, 55);
+    view.add(crmSystem, x + spacing, y + 200, 120, 55);
+    view.add(database, x + spacing, y + 300, 120, 55);
+
+    // Add relationships to view
+    view.add(assignment);
+    view.add(serving);
+    view.add(realization);
+    view.add(access);
+
+    console.log("✓ View created successfully: " + view.name);
+    console.log("Added " + $(view).find("element").size() + " elements to view");
+}

@@ -1,0 +1,123 @@
+/*
+ * Find Dependencies and Impact Analysis
+ *
+ * Analyzes dependencies between elements:
+ * - Direct dependencies
+ * - Transitive dependencies
+ * - Impact analysis (what depends on this element)
+ * - Dependency chains
+ */
+
+console.log("Dependency Analysis...\n");
+
+var model = $("model").first();
+
+if (!model) {
+    console.log("No model found.");
+} else {
+    // Configuration - element to analyze
+    var elementName = "CRM System"; // Change this to analyze different elements
+
+    var element = $("element").filter(function(e) {
+        return e.name === elementName;
+    }).first();
+
+    if (!element) {
+        console.log("Element '" + elementName + "' not found.");
+        console.log("\nAvailable elements:");
+        $("application-component").each(function(e) {
+            console.log("  - " + e.name);
+        });
+    } else {
+        console.log("=" .repeat(60));
+        console.log("DEPENDENCY ANALYSIS: " + element.name);
+        console.log("Type: " + element.type);
+        console.log("=" .repeat(60));
+
+        // 1. Direct Dependencies (outgoing)
+        console.log("\n📤 DIRECT DEPENDENCIES (This element depends on):");
+        console.log("-" .repeat(60));
+
+        var outRels = $(element).outRels();
+        if (outRels.size() === 0) {
+            console.log("  No direct dependencies");
+        } else {
+            outRels.each(function(rel) {
+                console.log("  → " + rel.target.name);
+                console.log("    Type: " + rel.target.type);
+                console.log("    Via: " + rel.type);
+                console.log("");
+            });
+        }
+
+        // 2. Dependents (incoming)
+        console.log("\n📥 DEPENDENTS (Elements that depend on this):");
+        console.log("-" .repeat(60));
+
+        var inRels = $(element).inRels();
+        if (inRels.size() === 0) {
+            console.log("  No dependents");
+        } else {
+            inRels.each(function(rel) {
+                console.log("  ← " + rel.source.name);
+                console.log("    Type: " + rel.source.type);
+                console.log("    Via: " + rel.type);
+                console.log("");
+            });
+        }
+
+        // 3. Transitive Dependencies (2 levels)
+        console.log("\n🔄 TRANSITIVE DEPENDENCIES (2 levels deep):");
+        console.log("-" .repeat(60));
+
+        var visited = {};
+        visited[element.id] = true;
+
+        var level2Deps = [];
+        outRels.each(function(rel1) {
+            var dep1 = rel1.target;
+            if (!visited[dep1.id]) {
+                visited[dep1.id] = true;
+
+                $(dep1).outRels().each(function(rel2) {
+                    var dep2 = rel2.target;
+                    if (!visited[dep2.id]) {
+                        level2Deps.push({
+                            path: element.name + " → " + dep1.name + " → " + dep2.name,
+                            element: dep2
+                        });
+                        visited[dep2.id] = true;
+                    }
+                });
+            }
+        });
+
+        if (level2Deps.length === 0) {
+            console.log("  No transitive dependencies found");
+        } else {
+            level2Deps.forEach(function(dep) {
+                console.log("  " + dep.path);
+                console.log("    Type: " + dep.element.type);
+                console.log("");
+            });
+        }
+
+        // 4. Impact Summary
+        console.log("\n💥 IMPACT SUMMARY:");
+        console.log("-" .repeat(60));
+
+        var impactScore = inRels.size() * 10 + level2Deps.length;
+        var impactLevel = impactScore > 50 ? "CRITICAL" :
+                         impactScore > 20 ? "HIGH" :
+                         impactScore > 10 ? "MEDIUM" : "LOW";
+
+        console.log("  Direct dependents: " + inRels.size());
+        console.log("  Direct dependencies: " + outRels.size());
+        console.log("  Transitive dependencies: " + level2Deps.length);
+        console.log("  Impact Level: " + impactLevel);
+        console.log("  Impact Score: " + impactScore);
+
+        console.log("\n" + "=" .repeat(60));
+        console.log("✓ Analysis complete!");
+    }
+}

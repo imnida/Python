@@ -1,0 +1,76 @@
+/*
+ * Bulk Color Elements by Property
+ *
+ * Automatically color elements in views based on their properties:
+ * - Status (Active, Deprecated, Planned)
+ * - Lifecycle stage
+ * - Criticality level
+ * - Custom property values
+ */
+
+console.log("Coloring elements by property...");
+
+var model = $("model").first();
+
+if (!model) {
+    console.log("No model found.");
+} else {
+    // Color scheme based on Status property
+    var colorScheme = {
+        "Active": "#90EE90",      // Light Green
+        "Deprecated": "#FFB6C1",  // Light Red
+        "Planned": "#ADD8E6",     // Light Blue
+        "In Development": "#FFFFE0", // Light Yellow
+        "Retired": "#D3D3D3"      // Light Gray
+    };
+
+    // Color scheme for Criticality
+    var criticalityColors = {
+        "High": "#FF6B6B",        // Red
+        "Medium": "#FFD93D",      // Yellow
+        "Low": "#95E1D3"          // Light Green
+    };
+
+    var viewsProcessed = 0;
+    var elementsColored = 0;
+
+    // Process all views
+    $("view").each(function(view) {
+        console.log("\nProcessing view: " + view.name);
+
+        $(view).find("element").each(function(viewElement) {
+            var element = viewElement.concept;
+
+            // Color by Status property
+            var status = element.prop("Status");
+            if (status && colorScheme[status]) {
+                viewElement.fillColor = colorScheme[status];
+                console.log("  " + element.name + " → " + status + " (" + colorScheme[status] + ")");
+                elementsColored++;
+            }
+
+            // Alternative: Color by Criticality
+            var criticality = element.prop("Criticality");
+            if (criticality && criticalityColors[criticality]) {
+                viewElement.borderColor = criticalityColors[criticality];
+            }
+
+            // Color by element type
+            if (element.type === "application-component") {
+                viewElement.fontColor = "#000080"; // Navy blue text
+            }
+        });
+
+        viewsProcessed++;
+    });
+
+    console.log("\n✓ Coloring complete!");
+    console.log("Processed " + viewsProcessed + " views");
+    console.log("Colored " + elementsColored + " elements");
+
+    // Legend
+    console.log("\n📊 Color Legend:");
+    for (var status in colorScheme) {
+        console.log("  " + status + ": " + colorScheme[status]);
+    }
+}

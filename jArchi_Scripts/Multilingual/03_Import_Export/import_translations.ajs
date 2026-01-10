@@ -1,0 +1,480 @@
+/*
+ * Importer les Traductions
+ *
+ * Description : Importe les traductions depuis un fichier CSV ou JSON
+ * Auteur : Constitutional AI Framework
+ * Date : 2026-01-10
+ * Version : 1.0
+ *
+ * Intégration Constitutional AI :
+ *   - Traçabilité : OUI (préserve les relations)
+ *   - Falsifiabilité : NON (import de métadonnées)
+ *   - Choke Points : NON (données linguistiques)
+ *
+ * Usage :
+ *   1. Exporter les traductions avec export_translations.ajs
+ *   2. Éditer le fichier CSV/JSON avec les traductions
+ *   3. Configurer le chemin du fichier dans config.inputFile
+ *   4. Exécuter ce script
+ *
+ * Format CSV attendu :
+ *   Type;ID;Name_Original;ML_Name_fr;ML_Name_en;ML_Description_fr;...
+ *
+ * Format JSON attendu :
+ *   { "elements": [ { "id": "...", "translations": { "fr": {...}, ... } } ], ... }
+ */
+
+console.clear();
+console.show();
+
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+
+var config = {
+    // Chemin du fichier à importer
+    // Peut être absolu ou relatif au dossier du modèle
+    inputFile: "translations_export.csv", // ou .json
+
+    // Détection automatique du format (basée sur l'extension)
+    autoDetectFormat: true,
+
+    // Options d'import
+    updateOnlyIfNotEmpty: true,  // Ne mettre à jour que si la traduction n'est pas vide
+    overwriteExisting: false,    // Écraser les traductions existantes ou non
+    createMissingProperties: true, // Créer les propriétés ML_* si manquantes
+
+    // Options CSV
+    csvDelimiter: ";",           // Séparateur (doit correspondre au fichier)
+    csvHasHeader: true,          // Le fichier a une ligne d'en-tête
+    csvSkipEmptyLines: true,
+
+    // Validation
+    validateIds: true,           // Vérifier que les ID existent dans le modèle
+    strictMode: false,           // Mode strict : erreur si ID introuvable
+
+    // Log
+    verboseLogging: false        // Afficher chaque mise à jour
+};
+
+// ============================================================================
+// VARIABLES GLOBALES
+// ============================================================================
+
+var stats = {
+    linesProcessed: 0,
+    elementsUpdated: 0,
+    relationshipsUpdated: 0,
+    viewsUpdated: 0,
+    propertiesUpdated: 0,
+    skipped: 0,
+    errors: 0,
+    notFound: 0
+};
+
+var elementCache = {};  // Cache des éléments par ID
+
+// ============================================================================
+// FONCTIONS UTILITAIRES
+// ============================================================================
+
+function log(level, message) {
+    var prefix = {
+        "INFO": "ℹ️  ",
+        "SUCCESS": "✅ ",
+        "WARNING": "⚠️  ",
+        "ERROR": "❌ "
+    }[level] || "";
+    console.log(prefix + message);
+}
+
+function buildElementCache() {
+    log("INFO", "🔧 Construction du cache des éléments...");
+
+    // Éléments
+    $("element").each(function(elem) {
+        elementCache[elem.id] = { obj: elem, type: "element" };
+    });
+
+    // Relations
+    $("relationship").each(function(rel) {
+        elementCache[rel.id] = { obj: rel, type: "relationship" };
+    });
+
+    // Vues
+    model.views.each(function(view) {
+        elementCache[view.id] = { obj: view, type: "view" };
+    });
+
+    log("INFO", "   • " + Object.keys(elementCache).length + " objets indexés");
+}
+
+function parseCSVLine(line) {
+    var fields = [];
+    var field = "";
+    var inQuotes = false;
+
+    for (var i = 0; i < line.length; i++) {
+        var char = line.charAt(i);
+
+        if (char === config.csvDelimiter && !inQuotes) {
+            fields.push(field);
+            field = "";
+        } else if (char === '"') {
+            if (inQuotes && i + 1 < line.length && line.charAt(i + 1) === '"') {
+                // Double quote escaped
+                field += '"';
+                i++;
+            } else {
+                inQuotes = !inQuotes;
+            }
+        } else {
+            field += char;
+        }
+    }
+
+    fields.push(field);
+    return fields;
+}
+
+function updateObjectFromCSVRow(row, headers) {
+    try {
+        // Extraire les champs
+        var data = {};
+        for (var i = 0; i < headers.length && i < row.length; i++) {
+            data[headers[i]] = row[i];
+        }
+
+        // Récupérer l'objet
+        var id = data["ID"];
+        if (!id) {
+            stats.errors++;
+            return;
+        }
+
+        var cached = elementCache[id];
+        if (!cached) {
+            if (config.strictMode) {
+                log("ERROR", "ID introuvable: " + id);
+            }
+            stats.notFound++;
+            return;
+        }
+
+        var obj = cached.obj;
+        var modified = false;
+
+        // Mettre à jour les propriétés ML_*
+        for (var key in data) {
+            if (key.indexOf("ML_") === 0) {
+                var value = data[key];
+
+                // Vérifier si on doit mettre à jour
+                if (config.updateOnlyIfNotEmpty && (!value || value === "")) {
+                    continue;
+                }
+
+                if (!config.overwriteExisting && obj.prop(key)) {
+                    continue;
+                }
+
+                // Mettre à jour
+                obj.prop(key, value);
+                stats.propertiesUpdated++;
+                modified = true;
+
+                if (config.verboseLogging) {
+                    log("INFO", "   • " + obj.name + " [" + key + "] = " + value);
+                }
+            }
+        }
+
+        if (modified) {
+            if (cached.type === "element") stats.elementsUpdated++;
+            if (cached.type === "relationship") stats.relationshipsUpdated++;
+            if (cached.type === "view") stats.viewsUpdated++;
+        }
+
+        stats.linesProcessed++;
+
+    } catch (error) {
+        log("ERROR", "Erreur ligne: " + error);
+        stats.errors++;
+    }
+}
+
+function updateObjectFromJSON(jsonObj) {
+    try {
+        var id = jsonObj.id;
+        if (!id) {
+            stats.errors++;
+            return;
+        }
+
+        var cached = elementCache[id];
+        if (!cached) {
+            if (config.strictMode) {
+                log("ERROR", "ID introuvable: " + id);
+            }
+            stats.notFound++;
+            return;
+        }
+
+        var obj = cached.obj;
+        var modified = false;
+
+        // Mettre à jour les traductions
+        if (jsonObj.translations) {
+            for (var lang in jsonObj.translations) {
+                var trans = jsonObj.translations[lang];
+
+                // Nom
+                if (trans.name) {
+                    var nameProp = "ML_Name_" + lang;
+                    if (config.updateOnlyIfNotEmpty || trans.name !== "") {
+                        if (!config.overwriteExisting && obj.prop(nameProp)) {
+                            // Ne pas écraser
+                        } else {
+                            obj.prop(nameProp, trans.name);
+                            stats.propertiesUpdated++;
+                            modified = true;
+                        }
+                    }
+                }
+
+                // Description
+                if (trans.description) {
+                    var descProp = "ML_Description_" + lang;
+                    if (config.updateOnlyIfNotEmpty || trans.description !== "") {
+                        if (!config.overwriteExisting && obj.prop(descProp)) {
+                            // Ne pas écraser
+                        } else {
+                            obj.prop(descProp, trans.description);
+                            stats.propertiesUpdated++;
+                            modified = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (modified) {
+            if (cached.type === "element") stats.elementsUpdated++;
+            if (cached.type === "relationship") stats.relationshipsUpdated++;
+            if (cached.type === "view") stats.viewsUpdated++;
+        }
+
+        stats.linesProcessed++;
+
+    } catch (error) {
+        log("ERROR", "Erreur objet JSON: " + error);
+        stats.errors++;
+    }
+}
+
+// ============================================================================
+// IMPORT CSV
+// ============================================================================
+
+function importFromCSV(filePath) {
+    log("INFO", "📄 Lecture du fichier CSV...");
+
+    try {
+        // Lire le fichier
+        var File = Java.type("java.io.File");
+        var BufferedReader = Java.type("java.io.BufferedReader");
+        var FileReader = Java.type("java.io.FileReader");
+
+        var file = new File(filePath);
+        var reader = new BufferedReader(new FileReader(file));
+
+        var line;
+        var headers = null;
+        var lineNumber = 0;
+
+        while ((line = reader.readLine()) !== null) {
+            lineNumber++;
+
+            if (config.csvSkipEmptyLines && line.trim() === "") {
+                continue;
+            }
+
+            var fields = parseCSVLine(line);
+
+            // Première ligne = en-tête
+            if (config.csvHasHeader && headers === null) {
+                headers = fields;
+                log("INFO", "   • En-tête détecté: " + headers.length + " colonnes");
+                continue;
+            }
+
+            // Traiter la ligne
+            if (headers) {
+                updateObjectFromCSVRow(fields, headers);
+            }
+        }
+
+        reader.close();
+        log("SUCCESS", "   ✅ " + lineNumber + " lignes lues");
+
+    } catch (error) {
+        log("ERROR", "Erreur lors de la lecture du fichier CSV: " + error);
+        throw error;
+    }
+}
+
+// ============================================================================
+// IMPORT JSON
+// ============================================================================
+
+function importFromJSON(filePath) {
+    log("INFO", "📄 Lecture du fichier JSON...");
+
+    try {
+        // Lire le fichier
+        var File = Java.type("java.io.File");
+        var Files = Java.type("java.nio.file.Files");
+        var Paths = Java.type("java.nio.file.Paths");
+
+        var content = new java.lang.String(Files.readAllBytes(Paths.get(filePath)));
+        var data = JSON.parse(content);
+
+        log("INFO", "   • JSON parsé avec succès");
+
+        // Traiter les éléments
+        if (data.elements) {
+            data.elements.forEach(function(elem) {
+                updateObjectFromJSON(elem);
+            });
+        }
+
+        // Traiter les relations
+        if (data.relationships) {
+            data.relationships.forEach(function(rel) {
+                updateObjectFromJSON(rel);
+            });
+        }
+
+        // Traiter les vues
+        if (data.views) {
+            data.views.forEach(function(view) {
+                updateObjectFromJSON(view);
+            });
+        }
+
+        log("SUCCESS", "   ✅ Import JSON terminé");
+
+    } catch (error) {
+        log("ERROR", "Erreur lors de la lecture du fichier JSON: " + error);
+        throw error;
+    }
+}
+
+// ============================================================================
+// TRAITEMENT PRINCIPAL
+// ============================================================================
+
+function performImport() {
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "  IMPORT DES TRADUCTIONS");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "");
+
+    // Déterminer le chemin du fichier
+    var File = Java.type("java.io.File");
+    var inputPath;
+
+    if (new File(config.inputFile).isAbsolute()) {
+        inputPath = config.inputFile;
+    } else {
+        // Chemin relatif au modèle
+        var modelPath = model.path;
+        if (!modelPath) {
+            log("ERROR", "Le modèle n'a pas encore été sauvegardé.");
+            return;
+        }
+        var modelFile = new File(modelPath);
+        var modelDir = modelFile.getParent();
+        inputPath = modelDir + File.separator + config.inputFile;
+    }
+
+    // Vérifier que le fichier existe
+    var file = new File(inputPath);
+    if (!file.exists()) {
+        log("ERROR", "Fichier introuvable: " + inputPath);
+        return;
+    }
+
+    log("INFO", "📁 Fichier: " + inputPath);
+    log("INFO", "   • Taille: " + (file.length() / 1024).toFixed(2) + " KB");
+    log("INFO", "");
+
+    // Construire le cache
+    buildElementCache();
+    log("INFO", "");
+
+    // Détecter le format
+    var format;
+    if (config.autoDetectFormat) {
+        format = inputPath.toLowerCase().endsWith(".json") ? "json" : "csv";
+        log("INFO", "🔍 Format détecté: " + format.toUpperCase());
+    } else {
+        format = config.inputFile.toLowerCase().endsWith(".json") ? "json" : "csv";
+    }
+
+    log("INFO", "");
+    log("INFO", "🔄 Import en cours...");
+    log("INFO", "");
+
+    // Importer
+    if (format === "json") {
+        importFromJSON(inputPath);
+    } else {
+        importFromCSV(inputPath);
+    }
+
+    log("INFO", "");
+    log("SUCCESS", "✅ Import terminé !");
+}
+
+function displaySummary() {
+    log("INFO", "");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "  RÉSUMÉ DE L'IMPORT");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+    log("INFO", "");
+    log("INFO", "📊 Objets mis à jour:");
+    log("INFO", "   • Éléments: " + stats.elementsUpdated);
+    log("INFO", "   • Relations: " + stats.relationshipsUpdated);
+    log("INFO", "   • Vues: " + stats.viewsUpdated);
+    log("INFO", "");
+    log("INFO", "   • Total objets: " + (stats.elementsUpdated + stats.relationshipsUpdated + stats.viewsUpdated));
+    log("INFO", "   • Propriétés mises à jour: " + stats.propertiesUpdated);
+    log("INFO", "   • Lignes traitées: " + stats.linesProcessed);
+
+    if (stats.notFound > 0) {
+        log("WARNING", "   • ID introuvables: " + stats.notFound);
+    }
+
+    if (stats.errors > 0) {
+        log("ERROR", "   • Erreurs: " + stats.errors);
+    }
+
+    log("INFO", "");
+    log("INFO", "📝 Prochaines étapes:");
+    log("INFO", "   1. Vérifier les traductions: generate_multilingual_report.ajs");
+    log("INFO", "   2. Basculer vers une langue: switch_language.ajs");
+    log("INFO", "");
+    log("INFO", "═══════════════════════════════════════════════════════════");
+}
+
+// ============================================================================
+// EXÉCUTION
+// ============================================================================
+
+try {
+    performImport();
+    displaySummary();
+} catch (error) {
+    log("ERROR", "Erreur fatale: " + error);
+}

@@ -1,0 +1,166 @@
+/*
+ * Model Validation
+ *
+ * Validates the model for common issues:
+ * - Elements without names
+ * - Invalid relationships
+ * - Circular dependencies
+ * - Naming convention violations
+ * - Missing documentation
+ */
+
+console.log("Validating Model...\n");
+console.log("=" .repeat(60));
+
+var model = $("model").first();
+
+if (!model) {
+    console.log("No model found.");
+} else {
+    var issues = [];
+    var warnings = [];
+
+    // 1. Check for unnamed elements
+    console.log("1. Checking for unnamed elements...");
+    $("element").each(function(elem) {
+        if (!elem.name || elem.name.trim() === "") {
+            issues.push({
+                severity: "ERROR",
+                type: "Unnamed Element",
+                message: "Element of type '" + elem.type + "' has no name (ID: " + elem.id + ")"
+            });
+        }
+    });
+
+    // 2. Check for invalid relationships
+    console.log("2. Checking relationships...");
+    $("relationship").each(function(rel) {
+        if (!rel.source || !rel.target) {
+            issues.push({
+                severity: "ERROR",
+                type: "Invalid Relationship",
+                message: "Relationship '" + rel.name + "' has missing source or target"
+            });
+        }
+
+        // Check for self-relationships
+        if (rel.source && rel.target && rel.source.id === rel.target.id) {
+            warnings.push({
+                severity: "WARNING",
+                type: "Self-Relationship",
+                message: "Element '" + rel.source.name + "' has relationship to itself"
+            });
+        }
+    });
+
+    // 3. Check naming conventions
+    console.log("3. Checking naming conventions...");
+    $("element").each(function(elem) {
+        // Check for all-caps names (usually bad practice)
+        if (elem.name === elem.name.toUpperCase() && elem.name.length > 3) {
+            warnings.push({
+                severity: "WARNING",
+                type: "Naming Convention",
+                message: "Element '" + elem.name + "' is in ALL CAPS"
+            });
+        }
+
+        // Check for very long names
+        if (elem.name.length > 50) {
+            warnings.push({
+                severity: "WARNING",
+                type: "Long Name",
+                message: "Element '" + elem.name.substring(0, 30) + "...' has a very long name (" + elem.name.length + " chars)"
+            });
+        }
+
+        // Check for special characters in names
+        if (/[<>:"/\\|?*]/.test(elem.name)) {
+            warnings.push({
+                severity: "WARNING",
+                type: "Special Characters",
+                message: "Element '" + elem.name + "' contains special characters"
+            });
+        }
+    });
+
+    // 4. Check for missing documentation
+    console.log("4. Checking documentation coverage...");
+    var undocumented = 0;
+    $("element").each(function(elem) {
+        if (!elem.documentation || elem.documentation.trim() === "") {
+            undocumented++;
+        }
+    });
+
+    if (undocumented > 0) {
+        var totalElements = $("element").size();
+        var docPercent = ((totalElements - undocumented) / totalElements * 100).toFixed(1);
+        warnings.push({
+            severity: "INFO",
+            type: "Documentation",
+            message: undocumented + " elements missing documentation (" + docPercent + "% documented)"
+        });
+    }
+
+    // 5. Check for orphaned elements
+    console.log("5. Checking for orphaned elements...");
+    $("element").each(function(elem) {
+        var hasRelationships = $(elem).inRels().size() + $(elem).outRels().size() > 0;
+        var inViews = $("view").find(elem).size() > 0;
+
+        if (!hasRelationships && !inViews) {
+            warnings.push({
+                severity: "WARNING",
+                type: "Orphaned Element",
+                message: "Element '" + elem.name + "' has no relationships and is not in any view"
+            });
+        }
+    });
+
+    // 6. Check for duplicate names
+    console.log("6. Checking for duplicate names...");
+    var nameMap = {};
+    $("element").each(function(elem) {
+        var key = elem.type + ":" + elem.name;
+        if (nameMap[key]) {
+            warnings.push({
+                severity: "WARNING",
+                type: "Duplicate Name",
+                message: "Multiple '" + elem.type + "' elements named '" + elem.name + "'"
+            });
+        }
+        nameMap[key] = true;
+    });
+
+    // Print results
+    console.log("\n" + "=" .repeat(60));
+    console.log("VALIDATION RESULTS");
+    console.log("=" .repeat(60));
+
+    if (issues.length === 0 && warnings.length === 0) {
+        console.log("\n✅ No issues found! Model is valid.");
+    } else {
+        if (issues.length > 0) {
+            console.log("\n❌ ERRORS (" + issues.length + "):");
+            console.log("-" .repeat(60));
+            issues.forEach(function(issue) {
+                console.log("  [" + issue.type + "] " + issue.message);
+            });
+        }
+
+        if (warnings.length > 0) {
+            console.log("\n⚠️  WARNINGS (" + warnings.length + "):");
+            console.log("-" .repeat(60));
+            warnings.forEach(function(warning) {
+                console.log("  [" + warning.type + "] " + warning.message);
+            });
+        }
+    }
+
+    console.log("\n" + "=" .repeat(60));
+    console.log("SUMMARY:");
+    console.log("  Errors: " + issues.length);
+    console.log("  Warnings: " + warnings.length);
+    console.log("=" .repeat(60));
+}

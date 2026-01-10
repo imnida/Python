@@ -1,0 +1,76 @@
+/*
+ * Import Elements from CSV
+ *
+ * This is a template for importing elements from CSV data.
+ * Paste your CSV data in the csvData variable below.
+ *
+ * CSV Format:
+ * Name,Type,Documentation,Property1,Property2,...
+ */
+
+console.log("Importing elements from CSV...");
+
+var model = $("model").first();
+
+if (!model) {
+    console.log("No model found.");
+} else {
+    // CSV Data - paste your CSV here
+    var csvData = `Name,Type,Documentation,Status,Owner
+Customer Portal,application-component,Web-based customer portal,Active,IT Department
+Mobile App,application-component,iOS and Android mobile application,Active,IT Department
+API Gateway,application-component,Central API gateway,Active,Platform Team
+User Database,node,User data storage,Active,DBA Team
+Payment Service,application-component,Payment processing,In Development,Finance IT`;
+
+    // Parse CSV
+    var lines = csvData.trim().split('\n');
+    var headers = lines[0].split(',');
+
+    console.log("Headers found: " + headers.join(', '));
+    console.log("Importing " + (lines.length - 1) + " elements...\n");
+
+    var imported = 0;
+
+    // Process each line (skip header)
+    for (var i = 1; i < lines.length; i++) {
+        var values = lines[i].split(',');
+
+        if (values.length < headers.length) {
+            console.log("⚠ Skipping line " + i + ": insufficient columns");
+            continue;
+        }
+
+        // Create element
+        var name = values[0].trim();
+        var type = values[1].trim();
+        var documentation = values[2] ? values[2].trim() : "";
+
+        try {
+            var element = model.createObject(type, name);
+
+            if (documentation) {
+                element.documentation = documentation;
+            }
+
+            // Set properties
+            for (var j = 3; j < headers.length && j < values.length; j++) {
+                var propName = headers[j].trim();
+                var propValue = values[j].trim();
+
+                if (propValue) {
+                    element.prop(propName, propValue);
+                }
+            }
+
+            console.log("✓ Imported: " + name + " (" + type + ")");
+            imported++;
+
+        } catch (e) {
+            console.log("✗ Error importing " + name + ": " + e.message);
+        }
+    }
+
+    console.log("\n✓ Import complete!");
+    console.log("Successfully imported: " + imported + " elements");
+}

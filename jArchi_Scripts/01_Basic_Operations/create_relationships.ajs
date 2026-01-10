@@ -1,0 +1,51 @@
+/*
+ * Create ArchiMate Relationships
+ *
+ * This script demonstrates how to create relationships between
+ * ArchiMate elements.
+ */
+
+console.log("Creating ArchiMate Relationships...");
+
+var model = $("model").first();
+
+if (!model) {
+    console.log("No model found. Please open a model first.");
+} else {
+    // Create sample elements
+    var actor = model.createObject("business-actor", "User");
+    var process = model.createObject("business-process", "Login Process");
+    var service = model.createObject("business-service", "Authentication Service");
+    var application = model.createObject("application-component", "Authentication System");
+    var server = model.createObject("node", "Auth Server");
+
+    // Create relationships
+    // Structural Relationships
+    var composition = model.createRelationship("composition-relationship",
+        "Composition", application, service);
+    var aggregation = model.createRelationship("aggregation-relationship",
+        "Aggregation", process, service);
+    var assignment = model.createRelationship("assignment-relationship",
+        "Assignment", actor, process);
+    var realization = model.createRelationship("realization-relationship",
+        "Realization", application, service);
+
+    // Dependency Relationships
+    var serving = model.createRelationship("serving-relationship",
+        "Serving", service, actor);
+    var access = model.createRelationship("access-relationship",
+        "Access", application, server);
+    var influence = model.createRelationship("influence-relationship",
+        "Influence", actor, process);
+    var association = model.createRelationship("association-relationship",
+        "Association", actor, application);
+
+    // Dynamic Relationships
+    var triggering = model.createRelationship("triggering-relationship",
+        "Triggering", actor, process);
+    var flow = model.createRelationship("flow-relationship",
+        "Flow", process, service);
+
+    console.log("✓ Relationships created successfully!");
+    console.log("Created " + $("relationship").size() + " relationships");
+}

@@ -1,0 +1,88 @@
+/*
+ * Generate Microservices Architecture
+ *
+ * Creates a microservices architecture pattern with:
+ * - Multiple microservices
+ * - API Gateway
+ * - Service discovery
+ * - Message broker
+ * - Databases per service
+ */
+
+console.log("Generating Microservices Architecture...");
+
+var model = $("model").first();
+
+if (!model) {
+    console.log("No model found. Please open a model first.");
+} else {
+    var view = model.createArchimateView("Microservices Architecture");
+
+    // Define microservices
+    var services = [
+        {name: "User Service", db: "User DB", port: "8081"},
+        {name: "Order Service", db: "Order DB", port: "8082"},
+        {name: "Product Service", db: "Product DB", port: "8083"},
+        {name: "Payment Service", db: "Payment DB", port: "8084"}
+    ];
+
+    // Create infrastructure components
+    var apiGateway = model.createObject("application-component", "API Gateway");
+    var serviceRegistry = model.createObject("application-component", "Service Registry");
+    var messageBroker = model.createObject("application-component", "Message Broker");
+
+    // Layout
+    var y = 50;
+    view.add(apiGateway, 300, y, 150, 60);
+    view.add(serviceRegistry, 500, y, 150, 60);
+
+    var servicesY = 150;
+    var x = 50;
+    var serviceSpacing = 180;
+
+    // Create microservices and their databases
+    services.forEach(function(svc, index) {
+        var serviceX = x + (index * serviceSpacing);
+
+        // Create microservice
+        var microservice = model.createObject("application-component", svc.name);
+        view.add(microservice, serviceX, servicesY, 150, 60);
+
+        // Create interface
+        var apiInterface = model.createObject("application-interface", svc.name + " API");
+        view.add(apiInterface, serviceX, servicesY + 80, 150, 55);
+
+        var compRel = model.createRelationship("composition-relationship", "", microservice, apiInterface);
+        view.add(compRel);
+
+        // Connect to API Gateway
+        var servingRel = model.createRelationship("serving-relationship", "", microservice, apiGateway);
+        view.add(servingRel);
+
+        // Connect to Service Registry
+        var assocRel = model.createRelationship("association-relationship", "registers", microservice, serviceRegistry);
+        view.add(assocRel);
+
+        // Create database
+        var database = model.createObject("node", svc.db);
+        view.add(database, serviceX, servicesY + 200, 150, 60);
+
+        var dbAccess = model.createRelationship("access-relationship", "", microservice, database);
+        view.add(dbAccess);
+    });
+
+    // Add message broker
+    view.add(messageBroker, 300, servicesY + 100, 150, 60);
+
+    // Connect services to message broker (pub/sub pattern)
+    $("application-component").each(function(comp) {
+        if (services.some(function(s) { return s.name === comp.name; })) {
+            var flowRel = model.createRelationship("flow-relationship", "events", comp, messageBroker);
+            view.add(flowRel);
+        }
+    });
+
+    console.log("✓ Microservices Architecture generated!");
+    console.log("Created " + services.length + " microservices");
+    console.log("Infrastructure: API Gateway, Service Registry, Message Broker");
+}

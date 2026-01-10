@@ -1,0 +1,97 @@
+/*
+ * Generate Application Landscape
+ *
+ * This script generates a complete application landscape with:
+ * - Multiple application components
+ * - Data objects
+ * - Application services
+ * - Relationships between them
+ */
+
+console.log("Generating Application Landscape...");
+
+var model = $("model").first();
+
+if (!model) {
+    console.log("No model found. Please open a model first.");
+} else {
+    // Define application landscape structure
+    var applications = [
+        {name: "CRM System", services: ["Customer Management", "Sales Tracking"], data: ["Customer Data", "Sales Data"]},
+        {name: "ERP System", services: ["Inventory Management", "Financial Reporting"], data: ["Inventory Data", "Financial Data"]},
+        {name: "E-Commerce Platform", services: ["Product Catalog", "Shopping Cart"], data: ["Product Data", "Order Data"]},
+        {name: "Analytics Platform", services: ["Data Analysis", "Reporting"], data: ["Analytics Data"]}
+    ];
+
+    // Create view
+    var view = model.createArchimateView("Application Landscape");
+
+    var x = 50, y = 50;
+    var appWidth = 150, appHeight = 80;
+    var spacing = 50;
+
+    applications.forEach(function(app, index) {
+        // Create application component
+        var appComponent = model.createObject("application-component", app.name);
+        var appX = x + (index * (appWidth + spacing));
+        view.add(appComponent, appX, y, appWidth, appHeight);
+
+        var serviceY = y + appHeight + 30;
+
+        // Create services
+        app.services.forEach(function(serviceName, sIndex) {
+            var service = model.createObject("application-service", serviceName);
+            var serviceX = appX + (sIndex * 80);
+            view.add(service, serviceX, serviceY, 120, 55);
+
+            // Create realization relationship
+            var rel = model.createRelationship("realization-relationship", "", appComponent, service);
+            view.add(rel);
+        });
+
+        var dataY = serviceY + 100;
+
+        // Create data objects
+        app.data.forEach(function(dataName, dIndex) {
+            var dataObj = model.createObject("data-object", dataName);
+            var dataX = appX + (dIndex * 80);
+            view.add(dataObj, dataX, dataY, 120, 55);
+
+            // Create access relationship
+            var rel = model.createRelationship("access-relationship", "", appComponent, dataObj);
+            view.add(rel);
+        });
+    });
+
+    // Create integration relationships between applications
+    var apps = $("application-component").filter(function(app) {
+        return applications.some(function(a) { return a.name === app.name; });
+    });
+
+    if (apps.size() >= 2) {
+        // Example: CRM flows to ERP
+        var flow1 = model.createRelationship("flow-relationship", "Customer Orders",
+            apps.eq(0), apps.eq(1));
+        view.add(flow1);
+
+        // Example: E-Commerce uses CRM
+        if (apps.size() >= 3) {
+            var flow2 = model.createRelationship("flow-relationship", "Customer Info",
+                apps.eq(2), apps.eq(0));
+            view.add(flow2);
+        }
+
+        // Example: Analytics accesses all
+        if (apps.size() >= 4) {
+            for (var i = 0; i < 3; i++) {
+                var access = model.createRelationship("access-relationship", "",
+                    apps.eq(3), apps.eq(i));
+                view.add(access);
+            }
+        }
+    }
+
+    console.log("✓ Application Landscape generated successfully!");
+    console.log("Created " + applications.length + " applications");
+    console.log("View: " + view.name);
+}

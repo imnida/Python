@@ -1,0 +1,11 @@
+/*
+ * Hello jArchi!
+ *
+ * A simple first script to verify jArchi is working.
+ */
+
+console.log("Hello from jArchi!");
+console.log("Current model: " + $("model").first().name);
+console.log("Total elements: " + $("element").size());
+console.log("Total relationships: " + $("relationship").size());
+console.log("Total views: " + $("view").size());

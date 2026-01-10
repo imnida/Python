@@ -1,0 +1,74 @@
+/*
+ * Bulk Rename Elements
+ *
+ * This script demonstrates how to bulk rename elements based on patterns:
+ * - Add prefix/suffix
+ * - Find and replace
+ * - Apply naming conventions
+ */
+
+console.log("Bulk Rename Elements...");
+
+var model = $("model").first();
+
+if (!model) {
+    console.log("No model found.");
+} else {
+    // Configuration
+    var config = {
+        mode: "prefix",  // Options: "prefix", "suffix", "replace", "convention"
+        prefix: "NEW_",
+        suffix: "_v2",
+        findText: "System",
+        replaceText: "Platform",
+        applyTo: "application-component"  // Element type to rename
+    };
+
+    // Get elements to rename
+    var elements = $(config.applyTo);
+
+    console.log("Found " + elements.size() + " elements of type: " + config.applyTo);
+
+    var renamed = 0;
+
+    elements.each(function(element) {
+        var oldName = element.name;
+        var newName = oldName;
+
+        switch(config.mode) {
+            case "prefix":
+                if (!oldName.startsWith(config.prefix)) {
+                    newName = config.prefix + oldName;
+                }
+                break;
+
+            case "suffix":
+                if (!oldName.endsWith(config.suffix)) {
+                    newName = oldName + config.suffix;
+                }
+                break;
+
+            case "replace":
+                newName = oldName.replace(new RegExp(config.findText, "g"), config.replaceText);
+                break;
+
+            case "convention":
+                // Apply naming convention: Title Case with spaces
+                newName = oldName
+                    .split(/[\s_-]+/)
+                    .map(function(word) {
+                        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+                    })
+                    .join(" ");
+                break;
+        }
+
+        if (newName !== oldName) {
+            element.name = newName;
+            console.log("  " + oldName + " → " + newName);
+            renamed++;
+        }
+    });
+
+    console.log("✓ Renamed " + renamed + " elements");
+}

@@ -1,0 +1,131 @@
+/*
+ * View Usage Report
+ *
+ * Generates a report on view usage and coverage:
+ * - Elements per view
+ * - Most/least used elements across views
+ * - Views per element
+ * - Unused elements
+ */
+
+console.log("View Usage Report...\n");
+console.log("=" .repeat(60));
+
+var model = $("model").first();
+
+if (!model) {
+    console.log("No model found.");
+} else {
+    var views = $("view");
+
+    console.log("MODEL: " + model.name);
+    console.log("Total Views: " + views.size());
+    console.log("=" .repeat(60));
+
+    // 1. Views with element counts
+    console.log("\n📋 VIEWS BY SIZE:");
+    console.log("-" .repeat(60));
+
+    var viewData = [];
+    views.each(function(view) {
+        var elementCount = $(view).find("element").size();
+        var relCount = $(view).find("relationship").size();
+
+        viewData.push({
+            name: view.name,
+            elements: elementCount,
+            relationships: relCount,
+            total: elementCount + relCount
+        });
+    });
+
+    // Sort by total objects
+    viewData.sort(function(a, b) {
+        return b.total - a.total;
+    });
+
+    viewData.forEach(function(v) {
+        console.log("  " + v.name);
+        console.log("    Elements: " + v.elements + ", Relationships: " + v.relationships);
+    });
+
+    // 2. Element usage across views
+    console.log("\n🎯 ELEMENT USAGE ACROSS VIEWS:");
+    console.log("-" .repeat(60));
+
+    var elementUsage = {};
+    $("element").each(function(elem) {
+        var viewCount = $("view").find(elem).size();
+        elementUsage[elem.id] = {
+            name: elem.name,
+            type: elem.type,
+            viewCount: viewCount
+        };
+    });
+
+    // Convert to array and sort
+    var usageArray = [];
+    for (var id in elementUsage) {
+        usageArray.push(elementUsage[id]);
+    }
+
+    usageArray.sort(function(a, b) {
+        return b.viewCount - a.viewCount;
+    });
+
+    // Most used elements
+    console.log("\n  Top 10 Most Used Elements:");
+    usageArray.slice(0, 10).forEach(function(elem) {
+        console.log("    " + elem.name.padEnd(35) + " (" + elem.viewCount + " views)");
+    });
+
+    // Unused elements
+    var unused = usageArray.filter(function(elem) {
+        return elem.viewCount === 0;
+    });
+
+    console.log("\n  Unused Elements (not in any view): " + unused.length);
+    if (unused.length > 0 && unused.length <= 20) {
+        unused.forEach(function(elem) {
+            console.log("    ⚠ " + elem.name + " (" + elem.type + ")");
+        });
+    } else if (unused.length > 20) {
+        console.log("    (showing first 20)");
+        unused.slice(0, 20).forEach(function(elem) {
+            console.log("    ⚠ " + elem.name + " (" + elem.type + ")");
+        });
+    }
+
+    // 3. View coverage statistics
+    console.log("\n📊 COVERAGE STATISTICS:");
+    console.log("-" .repeat(60));
+
+    var totalElements = $("element").size();
+    var elementsInViews = totalElements - unused.length;
+    var coveragePercent = totalElements > 0 ?
+        ((elementsInViews / totalElements) * 100).toFixed(1) : 0;
+
+    console.log("  Total Elements: " + totalElements);
+    console.log("  Elements in Views: " + elementsInViews);
+    console.log("  Coverage: " + coveragePercent + "%");
+
+    var avgElementsPerView = views.size() > 0 ?
+        (viewData.reduce(function(sum, v) { return sum + v.elements; }, 0) / views.size()).toFixed(1) : 0;
+
+    console.log("  Average Elements per View: " + avgElementsPerView);
+
+    // 4. View quality metrics
+    console.log("\n⭐ VIEW QUALITY:");
+    console.log("-" .repeat(60));
+
+    var emptyViews = viewData.filter(function(v) { return v.total === 0; }).length;
+    var smallViews = viewData.filter(function(v) { return v.total > 0 && v.total < 5; }).length;
+    var largeViews = viewData.filter(function(v) { return v.total > 20; }).length;
+
+    console.log("  Empty Views: " + emptyViews);
+    console.log("  Small Views (< 5 objects): " + smallViews);
+    console.log("  Large Views (> 20 objects): " + largeViews);
+
+    console.log("\n" + "=" .repeat(60));
+    console.log("✓ Report complete!");
+}

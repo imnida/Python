@@ -1,0 +1,68 @@
+/*
+ * Bulk Delete Unused Elements
+ *
+ * Clean up the model by removing:
+ * - Unreferenced elements (no relationships)
+ * - Elements not used in any view
+ * - Orphaned relationships
+ */
+
+console.log("Cleaning up unused elements...");
+
+var model = $("model").first();
+
+if (!model) {
+    console.log("No model found.");
+} else {
+    var deletedElements = 0;
+    var deletedRelationships = 0;
+
+    // Find elements with no relationships
+    console.log("\n1. Finding unreferenced elements...");
+    $("element").each(function(element) {
+        var incomingRels = $(element).inRels().size();
+        var outgoingRels = $(element).outRels().size();
+        var totalRels = incomingRels + outgoingRels;
+
+        // Check if element is in any view
+        var inViews = $("view").find(element).size();
+
+        if (totalRels === 0 && inViews === 0) {
+            console.log("  Deleting: " + element.name + " (no relationships, not in views)");
+            $(element).delete();
+            deletedElements++;
+        }
+    });
+
+    // Find orphaned relationships (source or target deleted)
+    console.log("\n2. Finding orphaned relationships...");
+    $("relationship").each(function(rel) {
+        if (!rel.source || !rel.target) {
+            console.log("  Deleting orphaned relationship: " + rel.name);
+            $(rel).delete();
+            deletedRelationships++;
+        }
+    });
+
+    // Find duplicate relationships
+    console.log("\n3. Finding duplicate relationships...");
+    var relationships = $("relationship");
+    var seen = {};
+
+    relationships.each(function(rel) {
+        var key = rel.type + "|" + rel.source.id + "|" + rel.target.id;
+
+        if (seen[key]) {
+            console.log("  Deleting duplicate: " + rel.type + " from " +
+                       rel.source.name + " to " + rel.target.name);
+            $(rel).delete();
+            deletedRelationships++;
+        } else {
+            seen[key] = true;
+        }
+    });
+
+    console.log("\n✓ Cleanup complete!");
+    console.log("Deleted " + deletedElements + " unused elements");
+    console.log("Deleted " + deletedRelationships + " orphaned/duplicate relationships");
+}

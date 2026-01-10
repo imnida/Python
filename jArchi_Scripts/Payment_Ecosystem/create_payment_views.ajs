@@ -1,0 +1,350 @@
+/*
+ * Create Payment Ecosystem Views
+ *
+ * Creates multiple ArchiMate views to visualize the payment ecosystem:
+ * 1. Vue Stratégique (Motivation Layer)
+ * 2. Vue Acteurs & Rôles
+ * 3. Vue Rails de Paiement
+ * 4. Vue Architecture Applicative
+ * 5. Vue Choke Points (avec colorisation)
+ */
+
+console.log("=" .repeat(70));
+console.log("CRÉATION DES VUES ÉCOSYSTÈME DE PAIEMENT");
+console.log("=" .repeat(70));
+console.log("");
+
+var model = $("model").first();
+
+if (!model) {
+    console.log("❌ Aucun modèle trouvé.");
+} else {
+    var viewsCreated = 0;
+
+    // ========================================
+    // VUE 1: MOTIVATION LAYER (Stratégie)
+    // ========================================
+
+    console.log("1. Création de la Vue Stratégique...");
+
+    var viewMotivation = model.createArchimateView("01 - Vue Stratégique (Motivation)");
+
+    var y = 50;
+    var x = 50;
+    var spacing = 150;
+
+    // Principes
+    var trustElem = $("principle").filter(function(p) { return p.name.indexOf("Trust") !== -1; }).first();
+    var invisElem = $("principle").filter(function(p) { return p.name.indexOf("Invisibilité") !== -1; }).first();
+    var obsElem = $("requirement").filter(function(r) { return r.name.indexOf("Observabilité") !== -1; }).first();
+
+    if (trustElem) viewMotivation.add(trustElem, x, y, 180, 60);
+    if (invisElem) viewMotivation.add(invisElem, x + spacing + 30, y, 180, 60);
+    if (obsElem) viewMotivation.add(obsElem, x + (spacing + 30) * 2, y, 180, 60);
+
+    // Objets métier
+    var mandatElem = $("business-object").filter(function(o) { return o.name.indexOf("Mandat") !== -1; }).first();
+    var intentElem = $("business-object").filter(function(o) { return o.name.indexOf("Intent") !== -1; }).first();
+
+    if (mandatElem) viewMotivation.add(mandatElem, x + 100, y + 150, 150, 55);
+    if (intentElem) viewMotivation.add(intentElem, x + 300, y + 150, 150, 55);
+
+    console.log("  ✓ Vue Stratégique créée");
+    viewsCreated++;
+
+    // ========================================
+    // VUE 2: ACTEURS & RÔLES
+    // ========================================
+
+    console.log("2. Création de la Vue Acteurs & Rôles...");
+
+    var viewActeurs = model.createArchimateView("02 - Acteurs & Rôles");
+
+    y = 50;
+    x = 50;
+
+    // Tiers de confiance (ligne du haut)
+    var actors = [
+        $("business-actor").filter(function(a) { return a.name.indexOf("EUDI") !== -1; }).first(),
+        $("business-actor").filter(function(a) { return a.name === "Banques"; }).first(),
+        $("business-actor").filter(function(a) { return a.name.indexOf("Acteurs Publics") !== -1; }).first(),
+        $("business-actor").filter(function(a) { return a.name.indexOf("Acteurs Privés") !== -1; }).first()
+    ];
+
+    actors.forEach(function(actor, index) {
+        if (actor) {
+            viewActeurs.add(actor, x + (index * 200), y, 180, 60);
+        }
+    });
+
+    // Rôles clients (ligne du bas)
+    y = 200;
+
+    var roles = [
+        $("business-role").filter(function(r) { return r.name === "Particulier"; }).first(),
+        $("business-role").filter(function(r) { return r.name === "Commerçant"; }).first(),
+        $("business-role").filter(function(r) { return r.name === "Professionnel"; }).first(),
+        $("business-role").filter(function(r) { return r.name === "ETI"; }).first()
+    ];
+
+    roles.forEach(function(role, index) {
+        if (role) {
+            viewActeurs.add(role, x + (index * 200), y, 180, 60);
+        }
+    });
+
+    console.log("  ✓ Vue Acteurs & Rôles créée");
+    viewsCreated++;
+
+    // ========================================
+    // VUE 3: RAILS DE PAIEMENT
+    // ========================================
+
+    console.log("3. Création de la Vue Rails de Paiement...");
+
+    var viewRails = model.createArchimateView("03 - Rails de Paiement");
+
+    y = 50;
+    x = 50;
+
+    // Carte v1 (colonne gauche)
+    var visaMC = $("business-actor").filter(function(a) { return a.name.indexOf("Visa/Mastercard") !== -1; }).first();
+    var acquisition = $("business-service").filter(function(s) { return s.name.indexOf("Acquisition Monétique") !== -1; }).first();
+    var emission = $("business-service").filter(function(s) { return s.name.indexOf("Émission") !== -1; }).first();
+
+    if (visaMC) viewRails.add(visaMC, x, y + 80, 180, 60);
+    if (acquisition) viewRails.add(acquisition, x, y, 150, 55);
+    if (emission) viewRails.add(emission, x, y + 160, 150, 55);
+
+    // Carte v2 / EPI (colonne milieu)
+    x = 250;
+    var epi = $("business-actor").filter(function(a) { return a.name.indexOf("EPI") !== -1; }).first();
+    var acceptorPSP = $("business-service").filter(function(s) { return s.name.indexOf("Acceptor PSP") !== -1; }).first();
+    var consumerPSP = $("business-service").filter(function(s) { return s.name.indexOf("Consumer PSP") !== -1; }).first();
+
+    if (epi) viewRails.add(epi, x, y + 80, 180, 60);
+    if (acceptorPSP) viewRails.add(acceptorPSP, x, y, 150, 55);
+    if (consumerPSP) viewRails.add(consumerPSP, x, y + 160, 150, 55);
+
+    // Commerce / Open Banking (colonne droite)
+    x = 500;
+    var virements = $("business-service").filter(function(s) { return s.name.indexOf("Virements Instantanés") !== -1; }).first();
+    var openBanking = $("business-service").filter(function(s) { return s.name === "Open Banking"; }).first();
+    var apiOB = $("application-service").filter(function(s) { return s.name.indexOf("API Open Banking") !== -1; }).first();
+
+    if (virements) viewRails.add(virements, x, y, 150, 55);
+    if (openBanking) viewRails.add(openBanking, x, y + 80, 150, 55);
+    if (apiOB) viewRails.add(apiOB, x, y + 160, 150, 55);
+
+    // Relations
+    $(viewRails).find("element").each(function(viewElem) {
+        var concept = viewElem.concept;
+        $(concept).rels().each(function(rel) {
+            // Vérifier si source et target sont dans la vue
+            var sourceInView = $(viewRails).find(rel.source).size() > 0;
+            var targetInView = $(viewRails).find(rel.target).size() > 0;
+
+            if (sourceInView && targetInView) {
+                viewRails.add(rel);
+            }
+        });
+    });
+
+    console.log("  ✓ Vue Rails de Paiement créée");
+    viewsCreated++;
+
+    // ========================================
+    // VUE 4: ARCHITECTURE APPLICATIVE
+    // ========================================
+
+    console.log("4. Création de la Vue Architecture Applicative...");
+
+    var viewArchi = model.createArchimateView("04 - Architecture Applicative");
+
+    y = 50;
+    x = 50;
+
+    // Canaux (ligne du haut)
+    var canaux = [
+        $("application-interface").filter(function(i) { return i.name.indexOf("App Mobile") !== -1; }).first(),
+        $("application-interface").filter(function(i) { return i.name.indexOf("Web") !== -1; }).first(),
+        $("application-interface").filter(function(i) { return i.name.indexOf("B2B") !== -1; }).first(),
+        $("application-interface").filter(function(i) { return i.name.indexOf("IA Natif") !== -1; }).first()
+    ];
+
+    canaux.forEach(function(canal, index) {
+        if (canal) {
+            viewArchi.add(canal, x + (index * 170), y, 150, 55);
+        }
+    });
+
+    // Composants (ligne milieu)
+    y = 180;
+    var agentsIA = $("application-component").filter(function(c) { return c.name.indexOf("Agents IA") !== -1; }).first();
+    var orchestration = $("application-component").filter(function(c) { return c.name.indexOf("Orchestration") !== -1; }).first();
+
+    if (agentsIA) viewArchi.add(agentsIA, x + 400, y, 200, 60);
+    if (orchestration) viewArchi.add(orchestration, x + 100, y, 200, 60);
+
+    // Services de paiement (ligne du bas)
+    y = 320;
+    var services = [
+        $("application-service").filter(function(s) { return s.name.indexOf("Carte v1") !== -1; }).first(),
+        $("application-service").filter(function(s) { return s.name.indexOf("Carte v2") !== -1; }).first(),
+        $("application-service").filter(function(s) { return s.name.indexOf("Commerce") !== -1 && s.name.indexOf("Numérique") === -1; }).first(),
+        $("application-service").filter(function(s) { return s.name.indexOf("Crypto") !== -1; }).first()
+    ];
+
+    services.forEach(function(service, index) {
+        if (service) {
+            viewArchi.add(service, x + (index * 170), y, 150, 55);
+        }
+    });
+
+    // Relations
+    $(viewArchi).find("element").each(function(viewElem) {
+        var concept = viewElem.concept;
+        $(concept).rels().each(function(rel) {
+            var sourceInView = $(viewArchi).find(rel.source).size() > 0;
+            var targetInView = $(viewArchi).find(rel.target).size() > 0;
+
+            if (sourceInView && targetInView) {
+                viewArchi.add(rel);
+            }
+        });
+    });
+
+    console.log("  ✓ Vue Architecture Applicative créée");
+    viewsCreated++;
+
+    // ========================================
+    // VUE 5: CHOKE POINTS
+    // ========================================
+
+    console.log("5. Création de la Vue Choke Points...");
+
+    var viewCP = model.createArchimateView("05 - Choke Points Analysis");
+
+    y = 50;
+    x = 50;
+
+    // Acteurs externes avec choke points
+    var chokepointActors = $("business-actor").filter(function(a) {
+        return a.prop("CP_Type") === "External";
+    });
+
+    chokepointActors.each(function(actor, index) {
+        var posX = x + ((index % 3) * 250);
+        var posY = y + (Math.floor(index / 3) * 150);
+
+        var viewElem = viewCP.add(actor, posX, posY, 220, 70);
+
+        // Coloriser selon score (si disponible)
+        var score = parseFloat(actor.prop("CP_Score_Total")) || 0;
+        var criticite = actor.prop("CP_Criticite");
+
+        if (criticite === "CRITIQUE" || score >= 80) {
+            viewElem.fillColor = "#FF6B6B"; // Rouge
+            viewElem.borderColor = "#8B0000";
+        } else if (criticite === "ELEVE" || score >= 60) {
+            viewElem.fillColor = "#FFA07A"; // Orange
+        } else if (criticite === "MOYEN" || score >= 40) {
+            viewElem.fillColor = "#FFD93D"; // Jaune
+        } else {
+            viewElem.fillColor = "#95E1D3"; // Vert
+        }
+
+        // Ajouter label avec score estimé
+        if (actor.name.indexOf("Visa/Mastercard") !== -1) {
+            viewElem.name = actor.name + "\n[CP: ~86]";
+        } else if (actor.name.indexOf("EPI") !== -1) {
+            viewElem.name = actor.name + "\n[CP: ~40]";
+        } else if (actor.name.indexOf("EUDI") !== -1) {
+            viewElem.name = actor.name + "\n[CP: ~35]";
+        }
+    });
+
+    console.log("  ✓ Vue Choke Points créée");
+    viewsCreated++;
+
+    // ========================================
+    // VUE 6: VUE D'ENSEMBLE (LANDSCAPE)
+    // ========================================
+
+    console.log("6. Création de la Vue d'Ensemble...");
+
+    var viewLandscape = model.createArchimateView("06 - Vue d'Ensemble Écosystème");
+
+    y = 50;
+    x = 50;
+    spacing = 200;
+
+    // Layer Motivation (haut)
+    if (trustElem) viewLandscape.add(trustElem, x, y, 150, 50);
+    if (invisElem) viewLandscape.add(invisElem, x + spacing, y, 150, 50);
+
+    // Layer Business - Acteurs (milieu-haut)
+    y = 150;
+    if (visaMC) {
+        var vmElem = viewLandscape.add(visaMC, x, y, 150, 55);
+        vmElem.fillColor = "#FF6B6B"; // Rouge (choke point critique)
+    }
+    if (epi) {
+        var epiElem = viewLandscape.add(epi, x + spacing, y, 150, 55);
+        epiElem.fillColor = "#95E1D3"; // Vert (acceptable)
+    }
+    if (eudi) {
+        var eudiElem = viewLandscape.add(eudi, x + spacing * 2, y, 150, 55);
+        eudiElem.fillColor = "#95E1D3"; // Vert
+    }
+
+    // Layer Business - Services (milieu-bas)
+    y = 280;
+    if (emission) viewLandscape.add(emission, x, y, 140, 50);
+    if (virements) viewLandscape.add(virements, x + spacing, y, 140, 50);
+    if (openBanking) viewLandscape.add(openBanking, x + spacing * 2, y, 140, 50);
+
+    // Layer Application (bas)
+    y = 400;
+    if (orchestration) viewLandscape.add(orchestration, x + spacing / 2, y, 180, 60);
+    if (agentsIA) viewLandscape.add(agentsIA, x + spacing * 2, y, 180, 60);
+
+    // Relations clés
+    $(viewLandscape).find("element").each(function(viewElem) {
+        var concept = viewElem.concept;
+        $(concept).rels().each(function(rel) {
+            var sourceInView = $(viewLandscape).find(rel.source).size() > 0;
+            var targetInView = $(viewLandscape).find(rel.target).size() > 0;
+
+            if (sourceInView && targetInView) {
+                viewLandscape.add(rel);
+            }
+        });
+    });
+
+    console.log("  ✓ Vue d'Ensemble créée");
+    viewsCreated++;
+
+    // ========================================
+    // RÉSUMÉ
+    // ========================================
+
+    console.log("\n" + "=" .repeat(70));
+    console.log("RÉSUMÉ:");
+    console.log("=" .repeat(70));
+    console.log("Vues créées: " + viewsCreated);
+    console.log("\n1. Vue Stratégique (Motivation)");
+    console.log("2. Vue Acteurs & Rôles");
+    console.log("3. Vue Rails de Paiement");
+    console.log("4. Vue Architecture Applicative");
+    console.log("5. Vue Choke Points Analysis");
+    console.log("6. Vue d'Ensemble Écosystème");
+    console.log("\n" + "=" .repeat(70));
+    console.log("✓ Toutes les vues ont été créées avec succès !");
+    console.log("\n📋 PROCHAINES ÉTAPES:");
+    console.log("1. Explorer les vues créées");
+    console.log("2. Ajuster les positions si nécessaire");
+    console.log("3. Scorer les choke points (scripts Choke_Points/)");
+    console.log("4. Générer le Risk Register");
+    console.log("=" .repeat(70));
+}

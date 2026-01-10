@@ -1,0 +1,175 @@
+/*
+ * Visualize Choke Points in Views
+ *
+ * Colors elements in all views based on their choke point criticality:
+ * - CRITIQUE (≥80): Red
+ * - ELEVE (60-79): Orange
+ * - MOYEN (40-59): Yellow
+ * - ACCEPTABLE (<40): Green
+ * - External (not scored): Blue border
+ * - Internal: Default
+ *
+ * Also adds visual indicators (border thickness, labels) for SPOF.
+ */
+
+console.log("=" .repeat(70));
+console.log("VISUALISATION DES CHOKE POINTS");
+console.log("=" .repeat(70));
+
+var model = $("model").first();
+
+if (!model) {
+    console.log("❌ Aucun modèle trouvé.");
+} else {
+    // ========== CONFIGURATION ==========
+    var config = {
+        colors: {
+            critique: "#FF6B6B",      // Rouge
+            eleve: "#FFA07A",         // Orange
+            moyen: "#FFD93D",         // Jaune
+            acceptable: "#95E1D3",    // Vert clair
+            external: "#87CEEB",      // Bleu clair (non scoré)
+            internal: null            // Pas de changement
+        },
+
+        borders: {
+            critique: "#8B0000",      // Bordure rouge foncé
+            eleve: "#FF8C00",         // Bordure orange foncé
+            spof: 3,                  // Épaisseur bordure SPOF
+            normal: 1
+        },
+
+        labels: {
+            showScore: true,          // Afficher score dans label
+            showSPOF: true            // Indiquer SPOF
+        },
+
+        views: {
+            updateAll: true,          // Mettre à jour toutes les vues
+            specificViews: []         // Ou lister vues spécifiques
+        }
+    };
+    // ===================================
+
+    var viewsProcessed = 0;
+    var elementsColored = 0;
+    var spofMarked = 0;
+
+    console.log("Configuration:");
+    console.log("  Mise à jour: " + (config.views.updateAll ? "Toutes les vues" : config.views.specificViews.length + " vues"));
+    console.log("  Labels avec score: " + config.labels.showScore);
+    console.log("  Marquage SPOF: " + config.labels.showSPOF);
+    console.log("");
+
+    // Sélectionner les vues à traiter
+    var views;
+    if (config.views.updateAll) {
+        views = $("view");
+    } else {
+        views = $("view").filter(function(v) {
+            return config.views.specificViews.indexOf(v.name) !== -1;
+        });
+    }
+
+    console.log("Traitement de " + views.size() + " vue(s)...\n");
+
+    // Traiter chaque vue
+    views.each(function(view) {
+        console.log("Vue: " + view.name);
+
+        var viewElementsColored = 0;
+
+        $(view).find("element").each(function(viewElement) {
+            var concept = viewElement.concept;
+
+            // Obtenir les propriétés choke point
+            var cpType = concept.prop("CP_Type");
+            var scoreTotal = parseFloat(concept.prop("CP_Score_Total")) || 0;
+            var criticite = concept.prop("CP_Criticite");
+
+            // Déterminer la couleur
+            var color = null;
+            var borderColor = null;
+
+            if (cpType === "External") {
+                if (scoreTotal > 0 && criticite) {
+                    // Colorier selon criticité
+                    switch(criticite) {
+                        case "CRITIQUE":
+                            color = config.colors.critique;
+                            borderColor = config.borders.critique;
+                            break;
+                        case "ELEVE":
+                            color = config.colors.eleve;
+                            borderColor = config.borders.eleve;
+                            break;
+                        case "MOYEN":
+                            color = config.colors.moyen;
+                            break;
+                        case "ACCEPTABLE":
+                            color = config.colors.acceptable;
+                            break;
+                    }
+                } else {
+                    // Externe mais pas scoré
+                    color = config.colors.external;
+                }
+
+                // Appliquer les couleurs
+                if (color) {
+                    viewElement.fillColor = color;
+                    viewElementsColored++;
+                    elementsColored++;
+                }
+
+                if (borderColor) {
+                    viewElement.borderColor = borderColor;
+                }
+
+                // Marquer les SPOF avec bordure épaisse
+                var isSPOF = (concept.prop("CP_SPOF") === "true" ||
+                              parseFloat(concept.prop("CP_Substituabilite")) >= 90);
+
+                if (isSPOF && config.labels.showSPOF) {
+                    viewElement.borderType = 1;  // Ligne épaisse
+                    spofMarked++;
+                }
+
+                // Ajouter le score au label si configuré
+                if (config.labels.showScore && scoreTotal > 0) {
+                    var currentName = viewElement.name || concept.name;
+
+                    // Vérifier si le score n'est pas déjà dans le nom
+                    if (currentName.indexOf("[") === -1) {
+                        viewElement.name = currentName + "\n[CP: " + scoreTotal.toFixed(0) + "]";
+                    }
+                }
+            }
+        });
+
+        console.log("  ✓ " + viewElementsColored + " éléments colorés");
+        viewsProcessed++;
+    });
+
+    // Créer une légende
+    console.log("\n" + "=" .repeat(70));
+    console.log("RÉSULTAT:");
+    console.log("=" .repeat(70));
+    console.log("Vues traitées: " + viewsProcessed);
+    console.log("Éléments colorés: " + elementsColored);
+    console.log("SPOF marqués: " + spofMarked);
+    console.log("");
+
+    console.log("LÉGENDE DES COULEURS:");
+    console.log("  🔴 Rouge: CRITIQUE (score ≥ 80) - Risque existentiel");
+    console.log("  🟠 Orange: ÉLEVÉ (score 60-79) - Risque stratégique");
+    console.log("  🟡 Jaune: MOYEN (score 40-59) - Risque tactique");
+    console.log("  🟢 Vert: ACCEPTABLE (score < 40) - Gérable");
+    console.log("  🔵 Bleu: EXTERNE non scoré - À évaluer");
+    console.log("");
+    console.log("  ▪️ Bordure épaisse: SPOF (Single Point of Failure)");
+    console.log("  [CP: XX]: Score de choke point");
+    console.log("");
+
+    console.log("✓ Visualisation terminée !");
+}

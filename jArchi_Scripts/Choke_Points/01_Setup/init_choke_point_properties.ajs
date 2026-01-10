@@ -1,0 +1,132 @@
+/*
+ * Initialize Choke Point Properties
+ *
+ * Adds the 6 choke point dimension properties to external components.
+ * Based on the Choke Point Detection Methodology.
+ *
+ * Dimensions:
+ * 1. CP_Concentration (0-100): Market structure concentration
+ * 2. CP_Substituabilite (0-100): Switching costs and alternatives
+ * 3. CP_Externalites (0-100): Network effects and lock-in
+ * 4. CP_Asymetrie (0-100): Power dynamics
+ * 5. CP_Opacite (0-100): Auditability and transparency
+ * 6. CP_Extraterritorialite (0-100): Sovereignty and jurisdiction
+ *
+ * Also adds metadata properties:
+ * - CP_Vendor: Vendor name
+ * - CP_Juridiction: Legal jurisdiction (EU/US/Other)
+ * - CP_Type: Internal/External
+ * - CP_Score_Total: Calculated total score (0-100)
+ * - CP_Criticite: CRITIQUE/ELEVE/MOYEN/ACCEPTABLE
+ * - CP_Mitigation: Mitigation strategy
+ */
+
+console.log("=" .repeat(60));
+console.log("INITIALISATION DES PROPRIÉTÉS CHOKE POINTS");
+console.log("=" .repeat(60));
+
+var model = $("model").first();
+
+if (!model) {
+    console.log("❌ Aucun modèle trouvé.");
+} else {
+    // ========== CONFIGURATION ==========
+    var config = {
+        // Types d'éléments à traiter (typiquement composants externes)
+        elementTypes: [
+            "application-component",
+            "node",
+            "system-software",
+            "application-service",
+            "technology-service"
+        ],
+
+        // Propriétés à initialiser
+        properties: {
+            // Dimensions (0-100)
+            "CP_Concentration": "0",
+            "CP_Substituabilite": "0",
+            "CP_Externalites": "0",
+            "CP_Asymetrie": "0",
+            "CP_Opacite": "0",
+            "CP_Extraterritorialite": "0",
+
+            // Métadonnées
+            "CP_Vendor": "Unknown",
+            "CP_Juridiction": "Unknown",
+            "CP_Type": "Unknown",  // Internal/External
+            "CP_Score_Total": "0",
+            "CP_Criticite": "NON_EVALUE",
+            "CP_Mitigation": "",
+
+            // Traçabilité
+            "CP_Last_Review": "",
+            "CP_Next_Review": "",
+            "CP_DRI": ""  // Directly Responsible Individual
+        },
+
+        // Initialiser uniquement les éléments marqués comme externes
+        onlyExternal: false  // Si true, initialise seulement éléments avec propriété "External"
+    };
+    // ===================================
+
+    var initialized = 0;
+    var skipped = 0;
+
+    console.log("\nConfiguration:");
+    console.log("  Types traités: " + config.elementTypes.join(", "));
+    console.log("  Mode: " + (config.onlyExternal ? "External only" : "All elements"));
+    console.log("");
+
+    // Parcourir tous les éléments des types configurés
+    config.elementTypes.forEach(function(elemType) {
+        var elements = $(elemType);
+
+        console.log("Traitement: " + elemType + " (" + elements.size() + " éléments)");
+
+        elements.each(function(elem) {
+            // Vérifier si on doit initialiser cet élément
+            var shouldInit = true;
+
+            if (config.onlyExternal) {
+                var existingType = elem.prop("CP_Type");
+                shouldInit = (existingType === "External" || existingType === "");
+            }
+
+            if (shouldInit) {
+                // Initialiser toutes les propriétés
+                for (var propKey in config.properties) {
+                    // Ne pas écraser les valeurs existantes
+                    if (!elem.prop(propKey) || elem.prop(propKey) === "") {
+                        elem.prop(propKey, config.properties[propKey]);
+                    }
+                }
+
+                console.log("  ✓ " + elem.name);
+                initialized++;
+            } else {
+                skipped++;
+            }
+        });
+    });
+
+    console.log("\n" + "=" .repeat(60));
+    console.log("RÉSULTAT:");
+    console.log("  Éléments initialisés: " + initialized);
+    console.log("  Éléments ignorés: " + skipped);
+    console.log("=" .repeat(60));
+
+    console.log("\n📋 PROCHAINES ÉTAPES:");
+    console.log("1. Marquer les composants externes:");
+    console.log("   → Définir CP_Type = 'External' pour vendors");
+    console.log("   → Définir CP_Vendor = nom du vendor");
+    console.log("   → Définir CP_Juridiction = EU/US/Other");
+    console.log("");
+    console.log("2. Scorer les 6 dimensions (0-100):");
+    console.log("   → Utiliser le script 'score_choke_points.ajs'");
+    console.log("");
+    console.log("3. Générer le rapport:");
+    console.log("   → Utiliser le script 'generate_risk_register.ajs'");
+    console.log("");
+    console.log("✓ Initialisation terminée !");
+}

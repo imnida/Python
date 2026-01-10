@@ -1,0 +1,248 @@
+/*
+ * Generate Choke Point Canvas
+ *
+ * Generates detailed Choke Point Canvas reports for selected components.
+ * Based on the 6-dimension analysis framework.
+ *
+ * Usage:
+ * 1. Select one or more elements in a view
+ * 2. Run this script
+ * 3. Canvas will be generated for each selected element
+ *
+ * If no elements are selected, generates canvas for all CRITIQUE elements.
+ */
+
+console.log("=" .repeat(70));
+console.log("CHOKE POINT CANVAS GENERATOR");
+console.log("=" .repeat(70));
+
+var model = $("model").first();
+
+if (!model) {
+    console.log("❌ Aucun modèle trouvé.");
+} else {
+    // Obtenir la sélection
+    var selection = $(selection());
+    var elements = [];
+
+    if (selection.size() > 0) {
+        console.log("Mode: Éléments sélectionnés (" + selection.size() + ")");
+        selection.each(function(item) {
+            if (item.concept) {
+                elements.push(item.concept);
+            }
+        });
+    } else {
+        console.log("Mode: Tous les choke points CRITIQUES");
+        $("element").filter(function(e) {
+            return e.prop("CP_Criticite") === "CRITIQUE";
+        }).each(function(elem) {
+            elements.push(elem);
+        });
+    }
+
+    if (elements.length === 0) {
+        console.log("\n⚠️  Aucun élément à analyser.");
+        console.log("   Sélectionnez des éléments ou scorez des choke points d'abord.");
+    } else {
+        console.log("Génération de " + elements.length + " canvas...\n");
+
+        elements.forEach(function(elem) {
+            generateCanvas(elem);
+        });
+
+        console.log("\n" + "=" .repeat(70));
+        console.log("✓ " + elements.length + " canvas généré(s) !");
+    }
+}
+
+// ========== FONCTIONS ==========
+
+function generateCanvas(elem) {
+    // Récupérer les propriétés
+    var name = elem.name;
+    var type = elem.type;
+    var vendor = elem.prop("CP_Vendor") || "Unknown";
+    var juridiction = elem.prop("CP_Juridiction") || "Unknown";
+
+    // Scores
+    var conc = elem.prop("CP_Concentration") || "0";
+    var subs = elem.prop("CP_Substituabilite") || "0";
+    var exte = elem.prop("CP_Externalites") || "0";
+    var asym = elem.prop("CP_Asymetrie") || "0";
+    var opac = elem.prop("CP_Opacite") || "0";
+    var extr = elem.prop("CP_Extraterritorialite") || "0";
+    var total = elem.prop("CP_Score_Total") || "0";
+    var criticite = elem.prop("CP_Criticite") || "NON_EVALUE";
+
+    // Métadonnées
+    var mitigation = elem.prop("CP_Mitigation") || "(Non définie)";
+    var dri = elem.prop("CP_DRI") || "(Non assigné)";
+    var lastReview = elem.prop("CP_Last_Review") || "Jamais";
+    var nextReview = elem.prop("CP_Next_Review") || "À planifier";
+
+    // Générer le canvas
+    console.log("┌" + "─".repeat(68) + "┐");
+    console.log("│ CHOKE POINT CANVAS".padEnd(69) + "│");
+    console.log("├" + "─".repeat(68) + "┤");
+    console.log("│ Composant: " + truncate(name, 55).padEnd(56) + "│");
+    console.log("│ Type: " + truncate(type, 60).padEnd(61) + "│");
+    console.log("├" + "─".repeat(68) + "┤");
+    console.log("│ 1. CONTRÔLE".padEnd(69) + "│");
+    console.log("│    Vendor: " + truncate(vendor, 56).padEnd(57) + "│");
+    console.log("│    Juridiction: " + truncate(juridiction, 51).padEnd(52) + "│");
+    console.log("│    Score Concentration: " + scoreBar(conc).padEnd(44) + "│");
+    console.log("├" + "─".repeat(68) + "┤");
+    console.log("│ 2. SUBSTITUABILITÉ".padEnd(69) + "│");
+    console.log("│    Alternatives viables: " + getAlternatives(elem).padEnd(43) + "│");
+    console.log("│    Délai migration: " + getDelaiMigration(elem).padEnd(48) + "│");
+    console.log("│    Coût migration: " + getCoutMigration(elem).padEnd(49) + "│");
+    console.log("│    Score Non-Substituabilité: " + scoreBar(subs).padEnd(38) + "│");
+    console.log("├" + "─".repeat(68) + "┤");
+    console.log("│ 3. EXTERNALITÉS RÉSEAU".padEnd(69) + "│");
+    console.log("│    Effet réseau présent: " + getEffetReseau(elem).padEnd(43) + "│");
+    console.log("│    Standards: " + getStandards(elem).padEnd(54) + "│");
+    console.log("│    Score Lock-in: " + scoreBar(exte).padEnd(50) + "│");
+    console.log("├" + "─".repeat(68) + "┤");
+    console.log("│ 4. ASYMÉTRIE POUVOIR".padEnd(69) + "│");
+    console.log("│    Nous dépendons vendor: " + getDependanceNous(elem).padEnd(42) + "│");
+    console.log("│    Vendor dépend de nous: " + getDependanceVendor(elem).padEnd(42) + "│");
+    console.log("│    Score Asymétrie: " + scoreBar(asym).padEnd(48) + "│");
+    console.log("├" + "─".repeat(68) + "┤");
+    console.log("│ 5. OPACITÉ".padEnd(69) + "│");
+    console.log("│    Code: " + getCodeType(elem).padEnd(59) + "│");
+    console.log("│    Documentation: " + getDocQuality(elem).padEnd(50) + "│");
+    console.log("│    Observability: " + getObservability(elem).padEnd(50) + "│");
+    console.log("│    Score Opacité: " + scoreBar(opac).padEnd(50) + "│");
+    console.log("├" + "─".repeat(68) + "┤");
+    console.log("│ 6. EXTRATERRITORIALITÉ".padEnd(69) + "│");
+    console.log("│    Data residency: " + getDataResidency(elem).padEnd(49) + "│");
+    console.log("│    Cloud Act applicable: " + getCloudAct(elem).padEnd(43) + "│");
+    console.log("│    Score Souveraineté: " + scoreBar(extr).padEnd(45) + "│");
+    console.log("├" + "─".repeat(68) + "┤");
+    console.log("│ SCORE TOTAL CHOKE POINT: " + total.padStart(6) + "/100".padEnd(36) + "│");
+    console.log("│".padEnd(69) + "│");
+    console.log("│ CRITICITÉ: " + getCriticalityWithSymbol(criticite).padEnd(57) + "│");
+    console.log("│".padEnd(69) + "│");
+    console.log("│ MITIGATION RECOMMANDÉE:".padEnd(69) + "│");
+    wrapText(mitigation, 66).forEach(function(line) {
+        console.log("│ " + line.padEnd(67) + "│");
+    });
+    console.log("│".padEnd(69) + "│");
+    console.log("│ GOUVERNANCE:".padEnd(69) + "│");
+    console.log("│   DRI: " + truncate(dri, 60).padEnd(61) + "│");
+    console.log("│   Dernier review: " + truncate(lastReview, 50).padEnd(51) + "│");
+    console.log("│   Prochain review: " + truncate(nextReview, 49).padEnd(50) + "│");
+    console.log("│".padEnd(69) + "│");
+    console.log("│ FALSIFIABILITÉ:".padEnd(69) + "│");
+    console.log("│ ❌ Si score ≥ 85 → choke point existentiel activé".padEnd(69) + "│");
+    console.log("│ ⚠️  Si score 70-84 → mitigation obligatoire".padEnd(69) + "│");
+    console.log("│ ✅ Si alternatives viables → risque maîtrisé".padEnd(69) + "│");
+    console.log("└" + "─".repeat(68) + "┘");
+    console.log("");
+}
+
+function scoreBar(scoreStr) {
+    var score = parseInt(scoreStr) || 0;
+    var bars = Math.round(score / 10);
+    var barStr = "█".repeat(bars) + "░".repeat(10 - bars);
+    return barStr + " " + score + "/100";
+}
+
+function truncate(str, maxLen) {
+    if (str.length <= maxLen) return str;
+    return str.substring(0, maxLen - 3) + "...";
+}
+
+function wrapText(text, maxLen) {
+    if (text.length <= maxLen) return [text];
+
+    var words = text.split(" ");
+    var lines = [];
+    var currentLine = "";
+
+    words.forEach(function(word) {
+        if ((currentLine + " " + word).trim().length <= maxLen) {
+            currentLine = (currentLine + " " + word).trim();
+        } else {
+            if (currentLine) lines.push(currentLine);
+            currentLine = word;
+        }
+    });
+
+    if (currentLine) lines.push(currentLine);
+    return lines;
+}
+
+function getCriticalityWithSymbol(crit) {
+    switch(crit) {
+        case "CRITIQUE": return "🔴 CRITIQUE (existentiel)";
+        case "ELEVE": return "🟠 ÉLEVÉ (stratégique)";
+        case "MOYEN": return "🟡 MOYEN (tactique)";
+        case "ACCEPTABLE": return "🟢 ACCEPTABLE (gérable)";
+        default: return "⚪ " + crit;
+    }
+}
+
+// Fonctions d'extraction de métadonnées (extensibles)
+function getAlternatives(elem) {
+    var alt = elem.prop("CP_Alternatives");
+    return alt || "À documenter";
+}
+
+function getDelaiMigration(elem) {
+    var delai = elem.prop("CP_Delai_Migration");
+    return delai || "À estimer";
+}
+
+function getCoutMigration(elem) {
+    var cout = elem.prop("CP_Cout_Migration");
+    return cout || "À estimer";
+}
+
+function getEffetReseau(elem) {
+    var effet = elem.prop("CP_Effet_Reseau");
+    return effet || "À évaluer";
+}
+
+function getStandards(elem) {
+    var std = elem.prop("CP_Standards");
+    return std || "À documenter";
+}
+
+function getDependanceNous(elem) {
+    var dep = elem.prop("CP_Dependance_Nous");
+    return dep || "À évaluer";
+}
+
+function getDependanceVendor(elem) {
+    var dep = elem.prop("CP_Dependance_Vendor");
+    return dep || "À évaluer";
+}
+
+function getCodeType(elem) {
+    var code = elem.prop("CP_Code_Type");
+    return code || "À documenter";
+}
+
+function getDocQuality(elem) {
+    var doc = elem.prop("CP_Doc_Quality");
+    return doc || "À évaluer";
+}
+
+function getObservability(elem) {
+    var obs = elem.prop("CP_Observability");
+    return obs || "À évaluer";
+}
+
+function getDataResidency(elem) {
+    var res = elem.prop("CP_Data_Residency");
+    return res || elem.prop("CP_Juridiction") || "À documenter";
+}
+
+function getCloudAct(elem) {
+    var juridiction = elem.prop("CP_Juridiction");
+    if (juridiction === "US") return "Oui (risque élevé)";
+    if (juridiction === "EU") return "Non";
+    return "À vérifier";
+}

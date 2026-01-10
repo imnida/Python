@@ -1,0 +1,287 @@
+/*
+ * Dependency Analysis - SPOF Detection
+ *
+ * Analyzes the architecture to identify Single Points of Failure (SPOF)
+ * and calculates dependency metrics for choke point detection.
+ *
+ * For each external component, this script identifies:
+ * - How many internal components depend on it (fan-in)
+ * - Whether it's a SPOF (no viable alternative)
+ * - Impact score if the component fails
+ * - Dependency depth (transitive dependencies)
+ */
+
+console.log("=" .repeat(70));
+console.log("ANALYSE DES DÉPENDANCES - DÉTECTION SPOF");
+console.log("=" .repeat(70));
+
+var model = $("model").first();
+
+if (!model) {
+    console.log("❌ Aucun modèle trouvé.");
+} else {
+    // Collecter tous les composants externes
+    var externalComponents = [];
+
+    $("element").filter(function(e) {
+        return e.prop("CP_Type") === "External";
+    }).each(function(elem) {
+        externalComponents.push(elem);
+    });
+
+    if (externalComponents.length === 0) {
+        console.log("⚠️  Aucun composant externe trouvé.");
+        console.log("   Marquez d'abord les composants externes (CP_Type = 'External')");
+    } else {
+        console.log("Composants externes analysés: " + externalComponents.length);
+        console.log("");
+
+        var results = [];
+
+        externalComponents.forEach(function(ext) {
+            var analysis = analyzeDependencies(ext);
+            results.push(analysis);
+
+            // Mettre à jour les propriétés de choke point
+            if (analysis.isSPOF) {
+                // Si SPOF, augmenter le score de substituabilité
+                var currentScore = parseInt(ext.prop("CP_Substituabilite")) || 0;
+                if (currentScore < 80) {
+                    ext.prop("CP_Substituabilite", "90");  // SPOF = haute non-substituabilité
+                }
+            }
+
+            // Définir le score d'asymétrie basé sur le fan-in
+            if (analysis.fanIn > 10) {
+                ext.prop("CP_Asymetrie", "95");  // Haute dépendance
+            } else if (analysis.fanIn > 5) {
+                ext.prop("CP_Asymetrie", "75");
+            } else if (analysis.fanIn > 2) {
+                ext.prop("CP_Asymetrie", "50");
+            }
+        });
+
+        // Trier par impact décroissant
+        results.sort(function(a, b) { return b.impactScore - a.impactScore; });
+
+        // Afficher les résultats
+        console.log("═".repeat(70));
+        console.log("RÉSULTATS D'ANALYSE");
+        console.log("═".repeat(70));
+        console.log("");
+
+        results.forEach(function(r, index) {
+            console.log((index + 1) + ". " + r.name);
+            console.log("   Vendor: " + r.vendor);
+            console.log("   Fan-in (dépendants): " + r.fanIn);
+            console.log("   Fan-out (dépendances): " + r.fanOut);
+            console.log("   Profondeur max: " + r.maxDepth);
+            console.log("   SPOF: " + (r.isSPOF ? "🔴 OUI" : "🟢 NON"));
+            console.log("   Impact Score: " + r.impactScore.toFixed(1) + "/100");
+
+            if (r.criticalDependents.length > 0) {
+                console.log("   Dépendants critiques:");
+                r.criticalDependents.forEach(function(dep) {
+                    console.log("     • " + dep);
+                });
+            }
+
+            console.log("");
+        });
+
+        // Statistiques globales
+        console.log("═".repeat(70));
+        console.log("STATISTIQUES GLOBALES");
+        console.log("═".repeat(70));
+        console.log("");
+
+        var spofCount = results.filter(function(r) { return r.isSPOF; }).length;
+        var highImpact = results.filter(function(r) { return r.impactScore >= 70; }).length;
+        var avgFanIn = results.reduce(function(sum, r) { return sum + r.fanIn; }, 0) / results.length;
+
+        console.log("Total SPOF détectés: " + spofCount);
+        console.log("Composants à impact élevé (≥70): " + highImpact);
+        console.log("Fan-in moyen: " + avgFanIn.toFixed(1));
+        console.log("");
+
+        if (spofCount > 0) {
+            console.log("🚨 ALERTE: " + spofCount + " SPOF détecté(s)");
+            console.log("   Action requise: Identifier alternatives ou créer redondance");
+            console.log("");
+        }
+
+        // Recommandations
+        console.log("═".repeat(70));
+        console.log("RECOMMANDATIONS");
+        console.log("═".repeat(70));
+        console.log("");
+
+        results.filter(function(r) { return r.isSPOF || r.impactScore >= 70; })
+               .forEach(function(r) {
+            console.log("🔴 " + r.name);
+
+            if (r.isSPOF) {
+                console.log("   → SPOF détecté: Implémenter multi-vendor strategy");
+            }
+
+            if (r.fanIn > 10) {
+                console.log("   → Dépendance élevée (" + r.fanIn + " composants)");
+                console.log("      Considérer architecture découplée (abstraction layer)");
+            }
+
+            if (r.impactScore >= 90) {
+                console.log("   → Impact CRITIQUE: Failover et circuit breaker obligatoires");
+            }
+
+            console.log("");
+        });
+
+        console.log("✓ Analyse terminée !");
+    }
+}
+
+// ========== FONCTIONS D'ANALYSE ==========
+
+function analyzeDependencies(externalComp) {
+    var name = externalComp.name;
+    var vendor = externalComp.prop("CP_Vendor") || "Unknown";
+
+    // Fan-in: combien de composants dépendent de cet externe
+    var incomingRels = $(externalComp).inRels();
+    var fanIn = 0;
+    var dependents = [];
+
+    incomingRels.each(function(rel) {
+        // Compter seulement relations de dépendance pertinentes
+        if (isRelevantDependency(rel.type)) {
+            fanIn++;
+            dependents.push(rel.source.name);
+        }
+    });
+
+    // Fan-out: combien de dépendances cet externe a
+    var outgoingRels = $(externalComp).outRels();
+    var fanOut = outgoingRels.size();
+
+    // Vérifier si c'est un SPOF
+    var isSPOF = checkIfSPOF(externalComp, fanIn);
+
+    // Calculer la profondeur maximale de dépendance
+    var maxDepth = calculateMaxDepth(externalComp, 0, []);
+
+    // Calculer impact score
+    var impactScore = calculateImpactScore(fanIn, maxDepth, isSPOF);
+
+    // Identifier dépendants critiques (business services/processes)
+    var criticalDependents = getCriticalDependents(externalComp);
+
+    return {
+        name: name,
+        vendor: vendor,
+        fanIn: fanIn,
+        fanOut: fanOut,
+        isSPOF: isSPOF,
+        maxDepth: maxDepth,
+        impactScore: impactScore,
+        dependents: dependents,
+        criticalDependents: criticalDependents
+    };
+}
+
+function isRelevantDependency(relType) {
+    // Relations indiquant une vraie dépendance
+    var relevantTypes = [
+        "serving-relationship",
+        "realization-relationship",
+        "assignment-relationship",
+        "access-relationship",
+        "used-by-relationship"
+    ];
+
+    return relevantTypes.indexOf(relType) !== -1;
+}
+
+function checkIfSPOF(externalComp, fanIn) {
+    // Un composant est SPOF si:
+    // 1. Il a des dépendants (fanIn > 0)
+    // 2. Il n'y a pas d'alternative viable
+
+    if (fanIn === 0) return false;
+
+    // Chercher des alternatives (même type, même vendor category)
+    var alternatives = $("element").filter(function(e) {
+        return e.id !== externalComp.id &&
+               e.type === externalComp.type &&
+               e.prop("CP_Type") === "External" &&
+               e.name.indexOf("Backup") === -1 &&  // Exclure backups explicites
+               e.name.indexOf("Fallback") === -1;
+    });
+
+    // Si pas d'alternative ET fanIn élevé → SPOF
+    return (alternatives.size() === 0 && fanIn >= 3);
+}
+
+function calculateMaxDepth(element, currentDepth, visited) {
+    // Protection contre cycles
+    if (visited.indexOf(element.id) !== -1) {
+        return currentDepth;
+    }
+
+    visited.push(element.id);
+
+    var maxChildDepth = currentDepth;
+
+    // Parcourir les dépendants (relations entrantes)
+    $(element).inRels().each(function(rel) {
+        if (isRelevantDependency(rel.type)) {
+            var childDepth = calculateMaxDepth(rel.source, currentDepth + 1, visited.slice());
+            if (childDepth > maxChildDepth) {
+                maxChildDepth = childDepth;
+            }
+        }
+    });
+
+    return maxChildDepth;
+}
+
+function calculateImpactScore(fanIn, maxDepth, isSPOF) {
+    // Score basé sur:
+    // - Nombre de dépendants (40%)
+    // - Profondeur de dépendance (30%)
+    // - SPOF bonus (30%)
+
+    var fanInScore = Math.min(fanIn * 5, 100);  // 20 dépendants = score max
+    var depthScore = Math.min(maxDepth * 20, 100);  // 5 niveaux = score max
+    var spofBonus = isSPOF ? 100 : 0;
+
+    var totalScore = (fanInScore * 0.4) + (depthScore * 0.3) + (spofBonus * 0.3);
+
+    return totalScore;
+}
+
+function getCriticalDependents(externalComp) {
+    // Identifier les business services/processes qui dépendent (directement ou indirectement)
+    var critical = [];
+    var visited = [];
+
+    function traverse(elem) {
+        if (visited.indexOf(elem.id) !== -1) return;
+        visited.push(elem.id);
+
+        // Si c'est un élément business critique, l'ajouter
+        if (elem.type.indexOf("business-") === 0) {
+            critical.push(elem.name);
+        }
+
+        // Parcourir les dépendants
+        $(elem).inRels().each(function(rel) {
+            if (isRelevantDependency(rel.type)) {
+                traverse(rel.source);
+            }
+        });
+    }
+
+    traverse(externalComp);
+
+    return critical;
+}

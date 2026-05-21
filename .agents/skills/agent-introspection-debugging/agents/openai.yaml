@@ -1,0 +1,9 @@
+name: agent-introspection-debugging
+model: gpt-4
+tools:
+  - introspect
+  - debug
+  - trace
+configuration:
+  log_level: debug
+  trace_tools: true

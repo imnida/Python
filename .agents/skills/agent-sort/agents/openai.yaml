@@ -1,0 +1,9 @@
+name: agent-sort
+model: gpt-4
+tools:
+  - sort
+  - filter
+  - transform
+configuration:
+  algorithm: timsort
+  stable: true

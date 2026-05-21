@@ -1,5 +1,10 @@
 {
-  "name": "ECC Marketplace",
-  "version": "1.0.0",
-  "plugins": []
+  "plugins": [
+    {
+      "id": "ecc-core",
+      "name": "ECC Core",
+      "version": "1.0.0",
+      "description": "Core ECC operator system"
+    }
+  ]
 }

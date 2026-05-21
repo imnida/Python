@@ -6,7 +6,7 @@ Everything Claude Code (ECC) eklentisi için yaygın sorunlar ve çözümler.
 
 - [Bellek ve Context Sorunları](#bellek-ve-context-sorunları)
 - [Ajan Harness Hataları](#ajan-harness-hataları)
-- [Hook ve İş Akışı Hataları](#hook-ve-iş-akışı-hataları)
+- [Hook ve İş Akışı Hataları](#hook-ve-i̇ş-akışı-hataları)
 - [Kurulum ve Yapılandırma](#kurulum-ve-yapılandırma)
 - [Performans Sorunları](#performans-sorunları)
 - [Yaygın Hata Mesajları](#yaygın-hata-mesajları)
@@ -212,7 +212,7 @@ npm --version
 python --version
 ```
 
-### Dev Server Blocker Yanlış Pozitifler
+### Dev Server Blocker Yanlış Pozitifleri
 
 **Belirti:** Hook, "dev" içeren meşru komutları engelliyor
 
@@ -225,7 +225,7 @@ python --version
 # Bu v1.8.0+'da düzeltildi (PR #371)
 # Eklentiyi en son sürüme yükselt
 
-# Geçici çözüm: Dev sunucularını tmux'ta sarmala
+# Geçici çözüm: Dev sunucularını tmux'ta sarmalayın
 tmux new-session -d -s dev "npm run dev"
 tmux attach -t dev
 

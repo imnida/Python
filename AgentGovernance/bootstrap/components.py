@@ -23,6 +23,8 @@ class Component:
     writes: list[str] = field(default_factory=list)
     forbidden_writes: list[str] = field(default_factory=list)
     triggers: list[str] = field(default_factory=list)
+    preceded_by: list[str] = field(default_factory=list)   # Flow relationships
+    gate_review: str = ""                                   # Association to a BusinessRole
 
 
 @dataclass
@@ -33,10 +35,26 @@ class DataObject:
 
 
 @dataclass
+class BusinessRole:
+    """ArchiMate BusinessRole — human actor or organisational unit."""
+    name: str
+    description: str = ""
+    assigned_to: list[str] = field(default_factory=list)   # → ApplicationComponent
+
+
+@dataclass
+class ArchitectureArtifact:
+    """ArchiMate Deliverable | WorkPackage | Plateau (Implementation layer)."""
+    name: str
+    artifact_type: str = "Deliverable"   # Deliverable | WorkPackage | Plateau
+    description: str = ""
+
+
+@dataclass
 class MotivationElement:
-    """ArchiMate Principle | Constraint | Requirement."""
+    """ArchiMate Principle | Constraint | Requirement | Driver | Goal | Outcome."""
     id: str
-    type: str       # Principle | Constraint | Requirement
+    type: str       # Principle | Constraint | Requirement | Driver | Goal | Outcome
     severity: str   # must | should | may
     text: str
 

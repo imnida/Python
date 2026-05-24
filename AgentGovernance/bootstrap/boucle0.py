@@ -69,13 +69,16 @@ class PolicyRule:
 
 # ── Étape 0 — Bootstrap model generation ─────────────────────────────────────
 
-def etape0(model_path: Path) -> dict[str, Any]:
-    print("\n[Étape 0] Génération du modèle ArchiMate depuis components.py")
-    bootstrapper = ModelBootstrapper(model_path)
+def etape0(model_path: Path, components_path: Path | None = None) -> dict[str, Any]:
+    src = components_path.name if components_path else "components.py"
+    print(f"\n[Étape 0] Génération du modèle ArchiMate depuis {src}")
+    bootstrapper = ModelBootstrapper(model_path, components_path=components_path)
     model = bootstrapper.generate()
     s = bootstrapper.stats(model)
     print(f"  ✅ {model_path.name} généré")
-    print(f"     {s['components']} composants · {s['data_objects']} data objects")
+    print(f"     {s['components']} composants · {s['data_objects']} data objects"
+          + (f" · {s['business_roles']} rôles" if s['business_roles'] else "")
+          + (f" · {s['artifacts']} artefacts" if s['artifacts'] else ""))
     print(f"     {s['principles']} principes · {s['constraints']} contraintes · "
           f"{s['requirements']} exigences")
     print(f"     {s['relationships']} relations dont {s['forbidden']} interdites")
@@ -267,18 +270,25 @@ def etape6(policy_path: Path) -> None:
 
 # ── Pipeline ──────────────────────────────────────────────────────────────────
 
-def run(base_dir: Path | None = None, auto_approve: bool = True) -> None:
+def run(
+    base_dir:        Path | None = None,
+    auto_approve:    bool = True,
+    components_path: Path | None = None,
+    model_path:      Path | None = None,
+    registry_path:   Path | None = None,
+    policy_path:     Path | None = None,
+) -> None:
     base = base_dir or Path(__file__).parent
-    model_path    = base / "generated" / "bootstrap_model.yaml"
-    registry_path = base / "toolregistry_harness.yaml"
-    policy_path   = base.parent / "policies" / "harness_policy.yaml"
+    model_path    = model_path    or base / "generated" / "bootstrap_model.yaml"
+    registry_path = registry_path or base / "toolregistry_harness.yaml"
+    policy_path   = policy_path   or base.parent / "policies" / "harness_policy.yaml"
 
     print("╔══════════════════════════════════════════════════════════╗")
     print("║  BOUCLE 0 — Bootstrap du Governance Harness              ║")
     print("╚══════════════════════════════════════════════════════════╝")
     t0 = time.perf_counter()
 
-    model    = etape0(model_path)
+    model    = etape0(model_path, components_path=components_path)
     extract  = etape1(model_path)
     drafts   = etape2(extract)
     active   = etape3(drafts, auto_approve)

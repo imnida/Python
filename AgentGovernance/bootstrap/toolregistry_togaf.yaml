@@ -1,0 +1,116 @@
+# ToolRegistry — TOGAF ADM Agents
+# Maps guardrail keywords to concrete tool/method names.
+# Used by GroundingEngine.ToolResolver (Étape 4 of Boucle 0).
+
+tool_map:
+
+  # TP4 / TC2: "sole authority for phase-gate" / "Architecture Board"
+  "phase-gate":
+    - bypass_gate_review
+    - skip_architecture_board
+    - auto_approve_phase
+    - force_phase_transition
+    - override_board_decision
+
+  # TC1: "must not directly overwrite"
+  "directly overwrite":
+    - overwrite_phase_artifact
+    - patch_deliverable_direct
+    - bypass_artifact_ownership
+    - force_write_artifact
+    - delete_approved_deliverable
+
+  # TP6: "baseline before target"
+  "baseline":
+    - skip_baseline_capture
+    - overwrite_baseline
+    - create_target_without_baseline
+    - delete_baseline
+
+  # TP5: "requirements management"
+  "requirements management":
+    - skip_requirements_update
+    - bypass_requirements_tracing
+    - delete_requirement
+    - disable_requirements_agent
+
+  # TP2: "must be traceable" / "traceable to a business driver"
+  "traceable":
+    - disable_decision_log
+    - skip_driver_reference
+    - silent_architecture_decision
+    - bypass_traceability
+
+  # TP7 / TC: "version-controlled" / "Architecture Repository"
+  "version-controlled":
+    - skip_versioning
+    - overwrite_repository
+    - bypass_version_control
+    - delete_repository_entry
+
+  # TC3: "gap analysis is mandatory"
+  "gap analysis":
+    - skip_gap_analysis
+    - bypass_gap_check
+    - auto_approve_without_gap
+
+  # TC4: "must not overwrite" (PhaseH → ArchitectureDefinitionDocument)
+  "must not overwrite":
+    - overwrite_phase_artifact
+    - patch_deliverable_direct
+    - force_write_artifact
+    - bypass_artifact_ownership
+
+  # TC5: "must not write to architecturecontract"
+  "must not write to architecturecontract":
+    - contract_write_direct
+    - contract_patch
+    - contract_overwrite
+    - bypass_contract_gate
+
+  # TC5: "must not write to architecturedefinitiondocument"
+  "must not write to architecturedefinitiondocument":
+    - add_write_direct
+    - add_patch
+    - add_overwrite
+    - bypass_add_gate
+
+  # TR1: "stakeholder sign-off"
+  "sign-off":
+    - skip_stakeholder_approval
+    - auto_sign_off
+    - bypass_stakeholder_gate
+    - force_vision_approval
+
+  # TC2: "phase transitions require" (gr-0009)
+  "phase transitions require":
+    - bypass_gate_review
+    - skip_architecture_board
+    - auto_approve_phase
+    - force_phase_transition
+    - override_board_decision
+
+  # TR3: "compliance assessment" (gr-0015)
+  "compliance assessment":
+    - skip_compliance_assessment
+    - bypass_assessment
+    - auto_close_phase_without_review
+
+  # TR2: "must reference an approved changerequest"
+  "approved changerequest":
+    - skip_change_request
+    - bypass_change_control
+    - force_architecture_change
+
+  # TP1: "approved deliverables before triggering"
+  "approved deliverables":
+    - skip_deliverable_check
+    - bypass_phase_prerequisite
+    - force_trigger_next_phase
+
+content_patterns:
+  pii:
+    - '\b\d{3}-\d{2}-\d{4}\b'
+    - '[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+'
+  credentials:
+    - '(?:api[_-]?key|secret|token|bearer)[\s:=]+[''"]?[A-Za-z0-9_\-]{16,}'

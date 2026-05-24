@@ -1,9 +1,9 @@
 meta:
   name: harness-bootstrap-model
   version: '1.0'
-  description: Self-describing ArchiMate model of the Governance Harness
+  description: Self-describing ArchiMate model of the system
   generated_by: ModelBootstrapper
-  note: "Generated from components.py \u2014 do not edit manually"
+  note: "Generated from components \u2014 do not edit manually"
 motivation:
   principles:
   - id: P1

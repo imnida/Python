@@ -1,0 +1,135 @@
+# ToolRegistry — Harness
+# Maps semantic keywords (from guardrail titles) to concrete method/tool names.
+# Used by GroundingEngine.ToolResolver (Étape 4 of Boucle 0).
+
+tool_map:
+
+  # gr: "No component writes rules directly to AGT"
+  "directly to agt":
+    - write_policy_direct
+    - patch_agt_rules
+    - bypass_grounding
+    - agt_policy_write
+    - inject_agt_rule
+
+  # gr: "FeedbackProcessor writes to archguard only"
+  "writes to archguard only":
+    - feedback_write_agt
+    - feedback_patch_policy
+    - feedback_update_toolregistry
+    - feedback_write_direct
+
+  # gr: "AI agents cannot access archguard"
+  "cannot access archguard":
+    - agent_read_archguard
+    - agent_query_guardrails
+    - agent_search_rules
+    - agent_write_archguard
+    - agent_update_guardrail
+
+  # gr: "AI agents cannot access ArchiMate model"
+  "cannot access archi":
+    - agent_fetch_model
+    - agent_read_archimate
+    - agent_query_archiserver
+    - agent_write_model
+
+  # gr: "ToolRegistry is read-only at runtime"
+  "read-only at runtime":
+    - toolregistry_write
+    - toolregistry_patch
+    - toolregistry_delete
+    - toolregistry_update
+    - toolregistry_import
+
+  # gr: "GroundingAuditLog is append-only" / "AGTAuditLog is append-only"
+  "append-only":
+    - auditlog_delete
+    - auditlog_update
+    - auditlog_truncate
+    - auditlog_overwrite
+    - groundinglog_delete
+    - groundinglog_update
+    - groundinglog_truncate
+
+  # gr: "sole authority for rules" / "sole authority for the model"
+  "sole authority":
+    - bypass_archguard
+    - write_rules_directly
+    - inject_policy_rule
+    - bypass_archimate
+    - write_model_directly
+
+  # gr: "Fail-closed"
+  "fail-closed":
+    - disable_enforcement
+    - set_default_allow_all
+    - bypass_policy_check
+    - disable_policy_evaluator
+
+  # gr: "Human approval required"
+  "human approval":
+    - auto_approve_model_change
+    - skip_human_gate
+    - force_activate_guardrail
+
+  # gr: "GroundingEngine must not write to archguard"
+  "must not write to archguard":
+    - grounding_write_archguard
+    - grounding_update_guardrail
+    - grounding_patch_corpus
+    - grounding_inject_rule
+
+  # gr: "must not write to GuardrailCorpus" (GroundingEngine, AGT, AgentMesh, AgentSRE)
+  "must not write to guardrailcorpus":
+    - guardrailcorpus_write
+    - guardrailcorpus_delete
+    - guardrailcorpus_patch
+    - guardrailcorpus_import
+
+  # gr: "must not write to AGTPolicyDocument" (AgentMesh, AgentSRE, FeedbackProcessor)
+  "must not write to agtpolicydocument":
+    - policydocument_write
+    - policydocument_patch
+    - policydocument_overwrite
+    - policy_direct_write
+
+  # gr: "must not write to AGTAuditLog" (GroundingEngine, FeedbackProcessor)
+  "must not write to agtauditlog":
+    - auditlog_write_external
+    - auditlog_inject
+    - auditlog_backfill
+
+  # gr: "must not write to ArchiMateModel" (AGT)
+  "must not write to archimatemodel":
+    - archimate_write
+    - archimate_patch
+    - archimate_overwrite
+    - model_write_direct
+
+  # gr: "must not write to ToolRegistry" (AGT, FeedbackProcessor)
+  "must not write to toolregistry":
+    - toolregistry_write
+    - toolregistry_patch
+    - toolregistry_delete
+    - toolregistry_update
+    - toolregistry_import
+
+  # gr: "Policy reload after every guardrail update"
+  "policy reload":
+    - skip_policy_reload
+    - disable_auto_reload
+    - bypass_reload_trigger
+
+  # gr: "All grounding decisions must be traceable"
+  "must be traceable":
+    - disable_grounding_audit
+    - skip_grounding_log
+    - silent_grounding
+
+content_patterns:
+  pii:
+    - '\b\d{3}-\d{2}-\d{4}\b'
+    - '[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+'
+  credentials:
+    - '(?:api[_-]?key|secret|token|bearer)[\s:=]+[''"]?[A-Za-z0-9_\-]{16,}'

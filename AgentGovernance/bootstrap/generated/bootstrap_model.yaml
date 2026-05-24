@@ -1,0 +1,334 @@
+meta:
+  name: harness-bootstrap-model
+  version: '1.0'
+  description: Self-describing ArchiMate model of the Governance Harness
+  generated_by: ModelBootstrapper
+  note: "Generated from components.py \u2014 do not edit manually"
+motivation:
+  principles:
+  - id: P1
+    severity: must
+    text: archguard is the sole authority for rules
+  - id: P2
+    severity: must
+    text: ArchiMate is the sole authority for the model
+  - id: P3
+    severity: must
+    text: "Fail-closed \u2014 errors result in deny"
+  - id: P4
+    severity: must
+    text: No component writes rules directly to AGT
+  - id: P5
+    severity: must
+    text: FeedbackProcessor writes to archguard only
+  - id: P6
+    severity: must
+    text: AI agents cannot access archguard
+  - id: P7
+    severity: must
+    text: AI agents cannot access ArchiMate model
+  - id: P8
+    severity: must
+    text: GroundingAuditLog is append-only
+  - id: P9
+    severity: must
+    text: AGTAuditLog is append-only
+  - id: P10
+    severity: must
+    text: ToolRegistry is read-only at runtime
+  constraints:
+  - id: C1
+    severity: must
+    text: GroundingEngine must not write to archguard
+  - id: C2
+    severity: must
+    text: FeedbackProcessor must not write to AGTPolicyDocument
+  - id: C3
+    severity: must
+    text: AGT must not write to ToolRegistry
+  requirements:
+  - id: R1
+    severity: should
+    text: Policy reload after every guardrail update
+  - id: R2
+    severity: should
+    text: Human approval required before model changes
+  - id: R3
+    severity: may
+    text: All grounding decisions must be traceable
+layers:
+- name: Application
+  elements:
+  - name: ArchiServer
+    type: ApplicationComponent
+    description: Exposes ArchiMate model via REST API (read-only)
+    functions:
+    - ModelExposure
+    - ElementQuery
+    - RelationshipQuery
+  - name: archguard
+    type: ApplicationComponent
+    description: Queryable store of architectural constraints and guardrails
+    functions:
+    - GuardrailManagement
+    - HybridSearch
+    - LifecycleManagement
+  - name: GroundingEngine
+    type: ApplicationComponent
+    description: Translates semantic guardrails to operational AGT policies
+    functions:
+    - SemanticParser
+    - ToolResolver
+    - PolicyGenerator
+    - GroundingAuditor
+  - name: AGT
+    type: ApplicationComponent
+    description: Runtime policy enforcement for AI agents
+    functions:
+    - PolicyEvaluator
+    - AuditLogger
+    - Enforcer
+  - name: AgentMesh
+    type: ApplicationComponent
+    description: Cryptographic identity and trust scoring for agents
+    functions:
+    - IdentityManager
+    - TrustScorer
+    - CredentialVerifier
+  - name: AgentSRE
+    type: ApplicationComponent
+    description: Observability, SLOs and circuit breakers for agent fleets
+    functions:
+    - SLOMonitor
+    - CircuitBreaker
+    - ReplayDebugger
+  - name: FeedbackProcessor
+    type: ApplicationComponent
+    description: Ingests AGT violations and refines archguard rules
+    functions:
+    - ViolationIngestion
+    - PatternAnalyzer
+    - RuleRefiner
+    - ModelUpdateTrigger
+  - name: ArchiMateModel
+    type: DataObject
+    description: Enterprise architecture model (XML/Archi)
+  - name: GuardrailCorpus
+    type: DataObject
+    description: Guardrail store (JSONL + SQLite FTS5)
+  - name: ToolRegistry
+    type: DataObject
+    description: "Semantic concept \u2192 tool names catalog"
+  - name: AGTPolicyDocument
+    type: DataObject
+    description: Executable AGT policy (YAML)
+  - name: AGTAuditLog
+    type: DataObject
+    description: Tamper-evident Merkle-chained audit log
+  - name: GroundingAuditLog
+    type: DataObject
+    description: "Grounding trace: guardrail \u2192 tool names"
+  - name: AgentCredential
+    type: DataObject
+    description: Ed25519 / ML-DSA-65 agent identity
+  - name: TrustScore
+    type: DataObject
+    description: "Behavioural trust score (0\u20131000)"
+  - name: RefinementProposal
+    type: DataObject
+    description: Proposed archguard update from violations
+relationships:
+- from: ArchiServer
+  to: GroundingEngine
+  type: Serving
+  forbidden: false
+- from: ArchiServer
+  to: ArchiMateModel
+  type: Access
+  access: read
+  forbidden: false
+- from: archguard
+  to: GroundingEngine
+  type: Serving
+  forbidden: false
+- from: archguard
+  to: FeedbackProcessor
+  type: Serving
+  forbidden: false
+- from: archguard
+  to: GuardrailCorpus
+  type: Access
+  access: read
+  forbidden: false
+- from: archguard
+  to: GuardrailCorpus
+  type: Access
+  access: write
+  forbidden: false
+- from: GroundingEngine
+  to: AGT
+  type: Serving
+  forbidden: false
+- from: GroundingEngine
+  to: GuardrailCorpus
+  type: Access
+  access: read
+  forbidden: false
+- from: GroundingEngine
+  to: ArchiMateModel
+  type: Access
+  access: read
+  forbidden: false
+- from: GroundingEngine
+  to: ToolRegistry
+  type: Access
+  access: read
+  forbidden: false
+- from: GroundingEngine
+  to: AGTPolicyDocument
+  type: Access
+  access: write
+  forbidden: false
+- from: GroundingEngine
+  to: GroundingAuditLog
+  type: Access
+  access: write
+  forbidden: false
+- from: GroundingEngine
+  to: GuardrailCorpus
+  type: Access
+  access: write
+  forbidden: true
+- from: GroundingEngine
+  to: AGTAuditLog
+  type: Access
+  access: write
+  forbidden: true
+- from: AGT
+  to: AIAgent
+  type: Serving
+  forbidden: false
+- from: AGT
+  to: AGTPolicyDocument
+  type: Access
+  access: read
+  forbidden: false
+- from: AGT
+  to: AGTAuditLog
+  type: Access
+  access: write
+  forbidden: false
+- from: AGT
+  to: GuardrailCorpus
+  type: Access
+  access: write
+  forbidden: true
+- from: AGT
+  to: ArchiMateModel
+  type: Access
+  access: write
+  forbidden: true
+- from: AGT
+  to: ToolRegistry
+  type: Access
+  access: write
+  forbidden: true
+- from: AGT
+  to: ViolationDetected
+  type: Triggering
+- from: AgentMesh
+  to: AGT
+  type: Serving
+  forbidden: false
+- from: AgentMesh
+  to: AgentCredential
+  type: Access
+  access: read
+  forbidden: false
+- from: AgentMesh
+  to: TrustScore
+  type: Access
+  access: read
+  forbidden: false
+- from: AgentMesh
+  to: AgentCredential
+  type: Access
+  access: write
+  forbidden: false
+- from: AgentMesh
+  to: TrustScore
+  type: Access
+  access: write
+  forbidden: false
+- from: AgentMesh
+  to: GuardrailCorpus
+  type: Access
+  access: write
+  forbidden: true
+- from: AgentMesh
+  to: AGTPolicyDocument
+  type: Access
+  access: write
+  forbidden: true
+- from: AgentSRE
+  to: AGT
+  type: Serving
+  forbidden: false
+- from: AgentSRE
+  to: AGTAuditLog
+  type: Access
+  access: read
+  forbidden: false
+- from: AgentSRE
+  to: GuardrailCorpus
+  type: Access
+  access: write
+  forbidden: true
+- from: AgentSRE
+  to: AGTPolicyDocument
+  type: Access
+  access: write
+  forbidden: true
+- from: FeedbackProcessor
+  to: archguard
+  type: Serving
+  forbidden: false
+- from: FeedbackProcessor
+  to: AGTAuditLog
+  type: Access
+  access: read
+  forbidden: false
+- from: FeedbackProcessor
+  to: GuardrailCorpus
+  type: Access
+  access: write
+  forbidden: false
+- from: FeedbackProcessor
+  to: RefinementProposal
+  type: Access
+  access: write
+  forbidden: false
+- from: FeedbackProcessor
+  to: AGTPolicyDocument
+  type: Access
+  access: write
+  forbidden: true
+- from: FeedbackProcessor
+  to: AGTAuditLog
+  type: Access
+  access: write
+  forbidden: true
+- from: FeedbackProcessor
+  to: ToolRegistry
+  type: Access
+  access: write
+  forbidden: true
+- from: FeedbackProcessor
+  to: ThresholdExceeded
+  type: Triggering
+events:
+- ViolationDetected
+- PolicyLoaded
+- GuardrailUpdated
+- ThresholdExceeded
+- GroundingCompleted

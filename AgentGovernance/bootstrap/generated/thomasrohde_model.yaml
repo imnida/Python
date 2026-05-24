@@ -1,0 +1,862 @@
+meta:
+  name: harness-bootstrap-model
+  version: '1.0'
+  description: Self-describing ArchiMate model of the system
+  generated_by: ModelBootstrapper
+  note: "Generated from components \u2014 do not edit manually"
+motivation:
+  principles:
+  - id: TR-P1
+    severity: must
+    text: archi-server is the sole programmatic write interface to the ArchiMate model
+  - id: TR-P2
+    severity: must
+    text: archguard is the sole authority for architectural guardrails at runtime
+  - id: TR-P3
+    severity: must
+    text: ADM gate reviews must be implemented as checkpointflow await_event steps
+  - id: TR-P4
+    severity: must
+    text: Architecture artifact reviews must be evidence-based using EAROS rubrics
+  - id: TR-P5
+    severity: must
+    text: All workflow state must be persisted to enable deterministic resume
+  - id: TR-P6
+    severity: should
+    text: AI agents must use ArchiMCPServer tools rather than direct REST calls to
+      archi-server
+  - id: TR-P7
+    severity: should
+    text: BOM operations must include an idempotencyKey to prevent duplicate writes
+  constraints:
+  - id: TR-C1
+    severity: must
+    text: "AI agents must not write directly to ArchiMateModel \u2014 only via archi-server"
+  - id: TR-C2
+    severity: must
+    text: "AI agents must not write to GuardrailCorpus \u2014 archguard is read-only\
+      \ for agents"
+  - id: TR-C3
+    severity: must
+    text: checkpointflow gate reviews must not be bypassed or auto-approved by agents
+  - id: TR-C4
+    severity: must
+    text: EAROS evaluation scores must cite evidence excerpts, not impressions
+  - id: TR-C5
+    severity: must
+    text: ArchiMCPServer mutation tools must not be called without prior archi_plan_model_changes
+      dry-run
+  - id: TR-C6
+    severity: must
+    text: StrandsCli must not write to ArchiMateModel or GuardrailCorpus
+  requirements:
+  - id: TR-R1
+    severity: must
+    text: Model changes via BOM must use idempotencyKey and duplicateStrategy
+  - id: TR-R2
+    severity: should
+    text: All ADM deliverables must be published to Confluence after gate approval
+  - id: TR-R3
+    severity: should
+    text: Capability models must be version-controlled with Git checkpoints
+  - id: TR-R4
+    severity: may
+    text: Architecture views should be auto-laid out after element creation
+layers:
+- name: Business
+  elements:
+  - name: EnterpriseArchitect
+    type: BusinessRole
+    description: Primary human user of the toolset. Authors capability models, conducts
+      reviews, approves gate reviews, publishes deliverables.
+    assigned_to:
+    - ArchiServer
+    - JArchiScriptingSystem
+    - EAWorkbench
+    - ECMStudio
+    - EAROS
+    - BCMCli
+    - ConfpubCli
+  - name: AIAgent
+    type: BusinessRole
+    description: Autonomous AI agent (Claude, Copilot, etc.) driving architecture
+      tasks via MCP, CLI, or API.
+    assigned_to:
+    - ArchiMCPServer
+    - ArchicliTool
+    - CheckpointFlow
+    - StrandsCli
+    - ConfpubCli
+  - name: ArchitectureBoard
+    type: BusinessRole
+    description: Governance body that approves gate reviews in checkpointflow await_event
+      steps and EAROS major/critical gate decisions.
+    assigned_to:
+    - CheckpointFlow
+    - EAROS
+  - name: PlatformTeam
+    type: BusinessRole
+    description: 'Operates the tooling platform: installs archi-server, maintains
+      archguard corpus, configures workflow definitions.'
+    assigned_to:
+    - ArchiServer
+    - Archguard
+    - CheckpointFlow
+- name: Application
+  elements:
+  - name: ArchiServer
+    type: ApplicationComponent
+    description: Production-ready HTTP REST API server running inside Archi (jArchi
+      plugin). Exposes the ArchiMate model for automation and AI agent integration
+      at localhost:8765.
+    functions:
+    - ModelQuery
+    - ElementCRUD
+    - RelationshipCRUD
+    - ViewManagement
+    - BOMApplication
+    - ScriptExecution
+    - AsyncOperations
+    - IdempotentWrites
+  - name: ArchiMCPServer
+    type: ApplicationComponent
+    description: MCP server (archi-mcp) shipping with archi-server. Exposes 28 tools
+      (17 read-only + 11 mutation) for direct Claude / AI agent integration via Model
+      Context Protocol.
+    functions:
+    - ModelRead
+    - ModelMutation
+    - ViewOperations
+    - DiagnosticsCheck
+    - OperationPolling
+  - name: ArchicliTool
+    type: ApplicationComponent
+    description: TypeScript CLI (archicli) for scripting archi-server. Supports BOM
+      batch operations, view export, element search, and async operation polling.
+    functions:
+    - BOMVerification
+    - BatchApply
+    - ViewExport
+    - ModelStats
+    - IDResolution
+  - name: JArchiScriptingSystem
+    type: ApplicationComponent
+    description: Comprehensive jArchi scripting toolkit inside Archi. Provides model
+      analysis, ELK auto-layout (5 algorithms), visualisation, CSV import/export,
+      and cleanup scripts.
+    functions:
+    - ModelAnalysis
+    - ELKLayout
+    - Visualisation
+    - CSVExportImport
+    - DuplicateDetection
+    - RoadmapScaffolding
+  - name: Archguard
+    type: ApplicationComponent
+    description: "CLI + Python library for managing architectural guardrails. Hybrid\
+      \ BM25 + semantic search over a JSONL corpus. Guardrail lifecycle: draft \u2192\
+      \ active \u2192 deprecated."
+    functions:
+    - GuardrailStorage
+    - HybridSearch
+    - LifecycleManagement
+    - IntegrityValidation
+    - TaxonomyControl
+  - name: CheckpointFlow
+    type: ApplicationComponent
+    description: 'Deterministic resumable workflow engine. Defines workflows as portable
+      YAML state machines. await_event provides human-in-the-loop gate reviews (exits
+      code 40, resumes via CLI). Agent-agnostic: works with Claude, Copilot, CI, or
+      shell.'
+    functions:
+    - WorkflowExecution
+    - StateCheckpointing
+    - EventGating
+    - ParallelExecution
+    - SubWorkflowInvocation
+    - ConditionalBranching
+  - name: EAROS
+    type: ApplicationComponent
+    description: 'Evidence-based architecture review framework. Three-layer model:
+      Core rubric (9 universal dimensions, 0-4 ordinal scale), artifact-specific Profiles,
+      and cross-cutting Overlays. 10 agent skills. Scores require cited evidence,
+      not impressions.'
+    functions:
+    - RubricEvaluation
+    - EvidenceCapture
+    - GateAssessment
+    - ScoringEngine
+    - CalibrationCheck
+    - ReportGeneration
+  - name: BCMCli
+    type: ApplicationComponent
+    description: Business Capability Modeling CLI. Renders capability trees from JSON/CSV
+      into SVG, HTML, PNG, PDF. Used by Phase B agents to produce capability maps.
+    functions:
+    - CapabilityRendering
+    - SVGExport
+    - HTMLExport
+    - PDFExport
+  - name: ConfpubCli
+    type: ApplicationComponent
+    description: "Agent-friendly Confluence publishing CLI. Markdown \u2192 Confluence\
+      \ with diff planning (plan then apply). Used to publish ADM deliverables after\
+      \ gate approval."
+    functions:
+    - DiffPlanning
+    - PagePublishing
+    - PageManagement
+  - name: XlCli
+    type: ApplicationComponent
+    description: Excel workbook automation CLI. Inspect, query, and mutate Excel workbooks
+      programmatically. Useful for Phase F migration planning spreadsheets.
+    functions:
+    - WorkbookInspection
+    - DataQuery
+    - WorkbookMutation
+  - name: ExcalidrawCli
+    type: ApplicationComponent
+    description: Excalidraw diagram inspection, validation, and rendering CLI. Used
+      for whiteboard-style architecture sketches.
+    functions:
+    - DiagramInspection
+    - DiagramValidation
+    - DiagramRendering
+  - name: EAWorkbench
+    type: ApplicationComponent
+    description: Repo-native EA workbench (local browser app). BCM Studio with 7 AI
+      actions, Git-native checkpointing, markdown editor. Uses Agent Client Protocol
+      with GitHub Copilot.
+    functions:
+    - CapabilityModeling
+    - GitCheckpointing
+    - AIAssistance
+    - DocumentEditing
+    - ScenarioManagement
+  - name: ECMStudio
+    type: ApplicationComponent
+    description: Desktop (Windows) capability tree management. JSONL + Git storage,
+      SQLite projection for search. Lifecycle management, import/export, audit events.
+    functions:
+    - CapabilityTreeEditing
+    - GitIntegration
+    - LifecycleManagement
+    - AuditLogging
+    - ModelPublishing
+  - name: StrandsCli
+    type: ApplicationComponent
+    description: 'Multi-agent workflow orchestration (YAML). 7 execution patterns:
+      chain, DAG, routing, parallel, evaluator-optimizer, orchestrator-workers, graph.
+      Supports Anthropic, Bedrock, OpenAI, Ollama.'
+    functions:
+    - WorkflowOrchestration
+    - AgentChaining
+    - ParallelExecution
+    - EvaluatorOptimizer
+    - OrchestratorWorkers
+  - name: ArchiMateModel
+    type: DataObject
+    description: The live .archimate model file managed by Archi. Single source of
+      truth for enterprise architecture.
+  - name: GuardrailCorpus
+    type: DataObject
+    description: "archguard JSONL store \u2014 architectural constraints with hybrid\
+      \ BM25 + semantic search index."
+  - name: BOMFile
+    type: DataObject
+    description: Bill of Materials JSON for archi-server batch operations. Uses tempId
+      for friendly element references.
+  - name: WorkflowDefinition
+    type: DataObject
+    description: checkpointflow YAML state machine defining steps, transitions, gate
+      reviews, and parallel branches.
+  - name: WorkflowState
+    type: DataObject
+    description: checkpointflow persisted execution state in ~/.checkpointflow/. Enables
+      deterministic resume after agent failure or gate pause.
+  - name: ArchitectureRubric
+    type: DataObject
+    description: "EAROS rubric YAML \u2014 9 evaluation dimensions with 0-4 ordinal\
+      \ scale, evidence requirements, and gate types."
+  - name: EvaluationRecord
+    type: DataObject
+    description: "EAROS evaluation output \u2014 scores, evidence citations, gate\
+      \ pass/fail, calibration status. Conforms to evaluation.schema.json."
+  - name: CapabilityModel
+    type: DataObject
+    description: Business capability tree in JSONL format (bcm-cli / ECMStudio). Version-controlled
+      in Git.
+  - name: CapabilityMap
+    type: DataObject
+    description: "Rendered capability map \u2014 SVG, HTML, PNG, or PDF output from\
+      \ BCMCli."
+  - name: ArchitectureArtifact
+    type: DataObject
+    description: ADM deliverable (Architecture Vision, Gap Analysis, etc.) in Markdown
+      format, ready for EAROS review or Confluence publishing.
+  - name: ArchitectureDocument
+    type: DataObject
+    description: Markdown architecture document managed in EA Workbench.
+  - name: ConfluencePage
+    type: DataObject
+    description: "Published Confluence page \u2014 output of ConfpubCli."
+  - name: ExcelWorkbook
+    type: DataObject
+    description: Excel workbook for migration planning, capacity planning, or stakeholder
+      registers.
+  - name: ExcalidrawDiagram
+    type: DataObject
+    description: Whiteboard-style architecture diagram (Excalidraw JSON format).
+  - name: WorkflowOutput
+    type: DataObject
+    description: Output artifacts produced by StrandsCli workflow execution.
+- name: Implementation
+  elements:
+  - name: ArchiServerBOM
+    type: Deliverable
+    description: Approved BOM file for a model change batch operation
+  - name: CheckpointflowDAG
+    type: WorkPackage
+    description: Workflow YAML defining an ADM cycle or sub-process
+  - name: EAROSEvaluation
+    type: Deliverable
+    description: Completed EAROS evaluation record for an architecture artifact
+  - name: CapabilityBaseline
+    type: Plateau
+    description: Approved baseline capability model snapshot
+  - name: CapabilityTarget
+    type: Plateau
+    description: Target capability model after transformation
+  - name: PublishedDocumentSet
+    type: Deliverable
+    description: Set of ADM deliverables published to Confluence
+relationships:
+- from: ArchiServer
+  to: ArchiMateGeneratorAgent
+  type: Serving
+  forbidden: false
+- from: ArchiServer
+  to: JArchiScriptingSystem
+  type: Serving
+  forbidden: false
+- from: ArchiServer
+  to: ArchiMCPServer
+  type: Serving
+  forbidden: false
+- from: ArchiServer
+  to: ArchicliTool
+  type: Serving
+  forbidden: false
+- from: ArchiServer
+  to: ArchiMateModel
+  type: Access
+  access: read
+  forbidden: false
+- from: ArchiServer
+  to: ArchiMateModel
+  type: Access
+  access: write
+  forbidden: false
+- from: ArchiServer
+  to: GuardrailCorpus
+  type: Access
+  access: write
+  forbidden: true
+- from: ArchiServer
+  to: WorkflowState
+  type: Access
+  access: write
+  forbidden: true
+- from: ArchiServer
+  to: ModelChanged
+  type: Triggering
+- from: ArchiMCPServer
+  to: AIAgent
+  type: Serving
+  forbidden: false
+- from: ArchiMCPServer
+  to: ArchiMateModel
+  type: Access
+  access: read
+  forbidden: false
+- from: ArchiMCPServer
+  to: ArchiMateModel
+  type: Access
+  access: write
+  forbidden: false
+- from: ArchiMCPServer
+  to: GuardrailCorpus
+  type: Access
+  access: write
+  forbidden: true
+- from: ArchiMCPServer
+  to: WorkflowState
+  type: Access
+  access: write
+  forbidden: true
+- from: ArchiMCPServer
+  to: EvaluationRecord
+  type: Access
+  access: write
+  forbidden: true
+- from: ArchicliTool
+  to: EnterpriseArchitect
+  type: Serving
+  forbidden: false
+- from: ArchicliTool
+  to: AIAgent
+  type: Serving
+  forbidden: false
+- from: ArchicliTool
+  to: BOMFile
+  type: Access
+  access: read
+  forbidden: false
+- from: ArchicliTool
+  to: ArchiMateModel
+  type: Access
+  access: read
+  forbidden: false
+- from: ArchicliTool
+  to: BOMFile
+  type: Access
+  access: write
+  forbidden: false
+- from: ArchicliTool
+  to: GuardrailCorpus
+  type: Access
+  access: write
+  forbidden: true
+- from: JArchiScriptingSystem
+  to: EnterpriseArchitect
+  type: Serving
+  forbidden: false
+- from: JArchiScriptingSystem
+  to: ArchiMateModel
+  type: Access
+  access: read
+  forbidden: false
+- from: JArchiScriptingSystem
+  to: ArchiMateModel
+  type: Access
+  access: write
+  forbidden: false
+- from: JArchiScriptingSystem
+  to: GuardrailCorpus
+  type: Access
+  access: write
+  forbidden: true
+- from: JArchiScriptingSystem
+  to: WorkflowState
+  type: Access
+  access: write
+  forbidden: true
+- from: Archguard
+  to: GroundingEngine
+  type: Serving
+  forbidden: false
+- from: Archguard
+  to: FeedbackProcessor
+  type: Serving
+  forbidden: false
+- from: Archguard
+  to: ADMPhaseAgents
+  type: Serving
+  forbidden: false
+- from: Archguard
+  to: GuardrailCorpus
+  type: Access
+  access: read
+  forbidden: false
+- from: Archguard
+  to: GuardrailCorpus
+  type: Access
+  access: write
+  forbidden: false
+- from: Archguard
+  to: ArchiMateModel
+  type: Access
+  access: write
+  forbidden: true
+- from: Archguard
+  to: WorkflowState
+  type: Access
+  access: write
+  forbidden: true
+- from: Archguard
+  to: EvaluationRecord
+  type: Access
+  access: write
+  forbidden: true
+- from: Archguard
+  to: GuardrailUpdated
+  type: Triggering
+- from: CheckpointFlow
+  to: ADMPhaseAgents
+  type: Serving
+  forbidden: false
+- from: CheckpointFlow
+  to: EnterpriseArchitect
+  type: Serving
+  forbidden: false
+- from: CheckpointFlow
+  to: WorkflowDefinition
+  type: Access
+  access: read
+  forbidden: false
+- from: CheckpointFlow
+  to: WorkflowState
+  type: Access
+  access: read
+  forbidden: false
+- from: CheckpointFlow
+  to: WorkflowState
+  type: Access
+  access: write
+  forbidden: false
+- from: CheckpointFlow
+  to: ArchiMateModel
+  type: Access
+  access: write
+  forbidden: true
+- from: CheckpointFlow
+  to: GuardrailCorpus
+  type: Access
+  access: write
+  forbidden: true
+- from: CheckpointFlow
+  to: EvaluationRecord
+  type: Access
+  access: write
+  forbidden: true
+- from: CheckpointFlow
+  to: WorkflowResumed
+  type: Triggering
+- from: CheckpointFlow
+  to: WorkflowCompleted
+  type: Triggering
+- from: CheckpointFlow
+  to: GateReviewRequested
+  type: Triggering
+- from: EAROS
+  to: PhaseGAgent
+  type: Serving
+  forbidden: false
+- from: EAROS
+  to: ArchitectureBoard
+  type: Serving
+  forbidden: false
+- from: EAROS
+  to: EnterpriseArchitect
+  type: Serving
+  forbidden: false
+- from: EAROS
+  to: ArchitectureRubric
+  type: Access
+  access: read
+  forbidden: false
+- from: EAROS
+  to: ArchitectureArtifact
+  type: Access
+  access: read
+  forbidden: false
+- from: EAROS
+  to: EvaluationRecord
+  type: Access
+  access: write
+  forbidden: false
+- from: EAROS
+  to: ArchiMateModel
+  type: Access
+  access: write
+  forbidden: true
+- from: EAROS
+  to: GuardrailCorpus
+  type: Access
+  access: write
+  forbidden: true
+- from: EAROS
+  to: WorkflowState
+  type: Access
+  access: write
+  forbidden: true
+- from: EAROS
+  to: ReviewCompleted
+  type: Triggering
+- from: BCMCli
+  to: PhaseBAgent
+  type: Serving
+  forbidden: false
+- from: BCMCli
+  to: EAWorkbench
+  type: Serving
+  forbidden: false
+- from: BCMCli
+  to: EnterpriseArchitect
+  type: Serving
+  forbidden: false
+- from: BCMCli
+  to: CapabilityModel
+  type: Access
+  access: read
+  forbidden: false
+- from: BCMCli
+  to: CapabilityMap
+  type: Access
+  access: write
+  forbidden: false
+- from: BCMCli
+  to: ArchiMateModel
+  type: Access
+  access: write
+  forbidden: true
+- from: BCMCli
+  to: GuardrailCorpus
+  type: Access
+  access: write
+  forbidden: true
+- from: ConfpubCli
+  to: ADMPhaseAgents
+  type: Serving
+  forbidden: false
+- from: ConfpubCli
+  to: EnterpriseArchitect
+  type: Serving
+  forbidden: false
+- from: ConfpubCli
+  to: ArchitectureArtifact
+  type: Access
+  access: read
+  forbidden: false
+- from: ConfpubCli
+  to: ConfluencePage
+  type: Access
+  access: write
+  forbidden: false
+- from: ConfpubCli
+  to: ArchiMateModel
+  type: Access
+  access: write
+  forbidden: true
+- from: ConfpubCli
+  to: GuardrailCorpus
+  type: Access
+  access: write
+  forbidden: true
+- from: ConfpubCli
+  to: WorkflowState
+  type: Access
+  access: write
+  forbidden: true
+- from: XlCli
+  to: PhaseFAgent
+  type: Serving
+  forbidden: false
+- from: XlCli
+  to: EnterpriseArchitect
+  type: Serving
+  forbidden: false
+- from: XlCli
+  to: ExcelWorkbook
+  type: Access
+  access: read
+  forbidden: false
+- from: XlCli
+  to: ExcelWorkbook
+  type: Access
+  access: write
+  forbidden: false
+- from: XlCli
+  to: ArchiMateModel
+  type: Access
+  access: write
+  forbidden: true
+- from: XlCli
+  to: GuardrailCorpus
+  type: Access
+  access: write
+  forbidden: true
+- from: ExcalidrawCli
+  to: EnterpriseArchitect
+  type: Serving
+  forbidden: false
+- from: ExcalidrawCli
+  to: ADMPhaseAgents
+  type: Serving
+  forbidden: false
+- from: ExcalidrawCli
+  to: ExcalidrawDiagram
+  type: Access
+  access: read
+  forbidden: false
+- from: ExcalidrawCli
+  to: ExcalidrawDiagram
+  type: Access
+  access: write
+  forbidden: false
+- from: ExcalidrawCli
+  to: ArchiMateModel
+  type: Access
+  access: write
+  forbidden: true
+- from: ExcalidrawCli
+  to: GuardrailCorpus
+  type: Access
+  access: write
+  forbidden: true
+- from: EAWorkbench
+  to: EnterpriseArchitect
+  type: Serving
+  forbidden: false
+- from: EAWorkbench
+  to: CapabilityModel
+  type: Access
+  access: read
+  forbidden: false
+- from: EAWorkbench
+  to: ArchitectureDocument
+  type: Access
+  access: read
+  forbidden: false
+- from: EAWorkbench
+  to: CapabilityModel
+  type: Access
+  access: write
+  forbidden: false
+- from: EAWorkbench
+  to: ArchitectureDocument
+  type: Access
+  access: write
+  forbidden: false
+- from: EAWorkbench
+  to: ArchiMateModel
+  type: Access
+  access: write
+  forbidden: true
+- from: EAWorkbench
+  to: GuardrailCorpus
+  type: Access
+  access: write
+  forbidden: true
+- from: EAWorkbench
+  to: EvaluationRecord
+  type: Access
+  access: write
+  forbidden: true
+- from: ECMStudio
+  to: EnterpriseArchitect
+  type: Serving
+  forbidden: false
+- from: ECMStudio
+  to: CapabilityModel
+  type: Access
+  access: read
+  forbidden: false
+- from: ECMStudio
+  to: CapabilityModel
+  type: Access
+  access: write
+  forbidden: false
+- from: ECMStudio
+  to: ArchiMateModel
+  type: Access
+  access: write
+  forbidden: true
+- from: ECMStudio
+  to: GuardrailCorpus
+  type: Access
+  access: write
+  forbidden: true
+- from: StrandsCli
+  to: ADMPhaseAgents
+  type: Serving
+  forbidden: false
+- from: StrandsCli
+  to: EnterpriseArchitect
+  type: Serving
+  forbidden: false
+- from: StrandsCli
+  to: WorkflowDefinition
+  type: Access
+  access: read
+  forbidden: false
+- from: StrandsCli
+  to: WorkflowOutput
+  type: Access
+  access: write
+  forbidden: false
+- from: StrandsCli
+  to: ArchiMateModel
+  type: Access
+  access: write
+  forbidden: true
+- from: StrandsCli
+  to: GuardrailCorpus
+  type: Access
+  access: write
+  forbidden: true
+- from: StrandsCli
+  to: EvaluationRecord
+  type: Access
+  access: write
+  forbidden: true
+- from: EnterpriseArchitect
+  to: ArchiServer
+  type: Assignment
+- from: EnterpriseArchitect
+  to: JArchiScriptingSystem
+  type: Assignment
+- from: EnterpriseArchitect
+  to: EAWorkbench
+  type: Assignment
+- from: EnterpriseArchitect
+  to: ECMStudio
+  type: Assignment
+- from: EnterpriseArchitect
+  to: EAROS
+  type: Assignment
+- from: EnterpriseArchitect
+  to: BCMCli
+  type: Assignment
+- from: EnterpriseArchitect
+  to: ConfpubCli
+  type: Assignment
+- from: AIAgent
+  to: ArchiMCPServer
+  type: Assignment
+- from: AIAgent
+  to: ArchicliTool
+  type: Assignment
+- from: AIAgent
+  to: CheckpointFlow
+  type: Assignment
+- from: AIAgent
+  to: StrandsCli
+  type: Assignment
+- from: AIAgent
+  to: ConfpubCli
+  type: Assignment
+- from: ArchitectureBoard
+  to: CheckpointFlow
+  type: Assignment
+- from: ArchitectureBoard
+  to: EAROS
+  type: Assignment
+- from: PlatformTeam
+  to: ArchiServer
+  type: Assignment
+- from: PlatformTeam
+  to: Archguard
+  type: Assignment
+- from: PlatformTeam
+  to: CheckpointFlow
+  type: Assignment
+events:
+- ModelChanged
+- GuardrailUpdated
+- WorkflowResumed
+- WorkflowCompleted
+- GateReviewRequested
+- ReviewCompleted
+- CapabilityModelUpdated
+- ArtifactPublished

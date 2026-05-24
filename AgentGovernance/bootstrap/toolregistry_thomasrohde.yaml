@@ -1,0 +1,170 @@
+# ToolRegistry — ThomasRohde Ecosystem Agents
+# Maps guardrail keywords to concrete tool/method names.
+# Used by GroundingEngine.ToolResolver (Étape 4 of Boucle 0).
+
+tool_map:
+
+  # TR-P1 / TR-C1: "sole programmatic write interface" / "write directly to"
+  "sole programmatic write interface":
+    - write_model_direct
+    - bypass_archiserver
+    - skip_archiserver
+    - patch_archimate_file_direct
+    - force_write_archimate
+
+  # TR-C1: "write directly to archimatemodel"
+  "write directly to":
+    - write_model_direct
+    - bypass_archiserver
+    - patch_archimate_file_direct
+    - direct_model_mutation
+
+  # TR-P2: "sole authority for architectural guardrails"
+  "sole authority for architectural guardrails":
+    - bypass_archguard
+    - write_guardrail_direct
+    - delete_guardrail
+    - overwrite_guardrail_corpus
+    - disable_archguard
+
+  # TR-P3 / TR-C3: "gate reviews must not be bypassed" / "await_event"
+  "gate reviews must not be bypassed":
+    - bypass_gate_review
+    - auto_approve_gate
+    - skip_await_event
+    - force_workflow_continue
+    - override_gate_decision
+
+  # TR-C3: "auto-approved by agents"
+  "auto-approved by agents":
+    - auto_approve_gate
+    - skip_await_event
+    - force_workflow_continue
+    - bypass_human_gate
+
+  # TR-P4 / TR-C4: "evidence-based"
+  "evidence-based":
+    - skip_evidence_citation
+    - auto_score_without_evidence
+    - bypass_rubric_evaluation
+    - generate_score_from_impression
+
+  # TR-C4: "must cite evidence excerpts"
+  "must cite evidence excerpts":
+    - skip_evidence_citation
+    - auto_score_without_evidence
+    - generate_score_from_impression
+    - bypass_calibration_check
+
+  # TR-P5: "deterministic resume"
+  "deterministic resume":
+    - skip_state_persist
+    - bypass_checkpoint
+    - delete_workflow_state
+    - force_workflow_restart
+
+  # TR-P6 / TR-C5: "direct REST calls" / "dry-run"
+  "dry-run":
+    - skip_dry_run
+    - bypass_plan_check
+    - skip_archi_plan_model_changes
+    - force_mutation_without_plan
+
+  # TR-P7 / TR-R1: "idempotencyKey"
+  "idempotencyKey":
+    - skip_idempotency_key
+    - write_without_idempotency
+    - bypass_idempotency_check
+
+  # TR-R1: "duplicateStrategy"
+  "duplicateStrategy":
+    - skip_duplicate_strategy
+    - write_without_duplicate_check
+    - bypass_bom_validation
+
+  # TR-C2: "read-only for agents"
+  "read-only for agents":
+    - agent_write_guardrail
+    - bypass_archguard_write_restriction
+    - force_guardrail_update
+    - delete_active_guardrail
+
+  # TR-C5: "must not be called without prior"
+  "must not be called without prior":
+    - skip_dry_run
+    - bypass_plan_check
+    - skip_archi_plan_model_changes
+    - call_mutation_without_plan
+
+  # TR-C6: "must not write to archimatemodel or guardrailcorpus"
+  "must not write to archimatemodel or guardrailcorpus":
+    - write_model_direct
+    - bypass_archiserver
+    - write_guardrail_direct
+    - bypass_archguard_write_restriction
+
+  # Structural forbidden_write — GuardrailCorpus
+  "must not write to guardrailcorpus":
+    - write_guardrail_direct
+    - agent_write_guardrail
+    - bypass_archguard_write_restriction
+    - force_guardrail_update
+    - delete_active_guardrail
+    - overwrite_guardrail_corpus
+
+  # Structural forbidden_write — ArchiMateModel
+  "must not write to archimatemodel":
+    - write_model_direct
+    - bypass_archiserver
+    - patch_archimate_file_direct
+    - direct_model_mutation
+    - force_write_archimate
+
+  # Structural forbidden_write — WorkflowState
+  "must not write to workflowstate":
+    - write_workflow_state_direct
+    - bypass_checkpoint_write
+    - force_state_mutation
+    - delete_workflow_state
+
+  # Structural forbidden_write — EvaluationRecord
+  "must not write to evaluationrecord":
+    - write_evaluation_direct
+    - bypass_earos_write
+    - force_score_write
+    - delete_evaluation_record
+
+  # TR-P3 / TR-C3: "await_event"
+  "await_event":
+    - bypass_gate_review
+    - skip_await_event
+    - auto_approve_gate
+    - force_workflow_continue
+    - bypass_human_gate
+    - override_gate_decision
+
+  # TR-P6: "direct REST calls"
+  "direct REST calls":
+    - skip_archi_mcp
+    - bypass_mcp_server
+    - call_archiserver_rest_direct
+    - skip_mutation_dry_run
+
+  # TR-R2: "published to Confluence after gate approval"
+  "published to Confluence after gate approval":
+    - skip_confluence_publish
+    - bypass_publish_gate
+    - publish_before_approval
+
+  # TR-R3: "version-controlled with Git checkpoints"
+  "version-controlled with Git checkpoints":
+    - skip_git_checkpoint
+    - bypass_version_control
+    - delete_git_history
+
+content_patterns:
+  pii:
+    - '\b\d{3}-\d{2}-\d{4}\b'
+    - '[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+'
+  credentials:
+    - '(?:api[_-]?key|secret|token|bearer)[\s:=]+[''"]?[A-Za-z0-9_\-]{16,}'

@@ -1,5 +1,6 @@
 agent-os-kernel>=3.2.0
 agentmesh-platform>=2.0.0
 agent-governance-toolkit[full]>=1.0.0
+anthropic>=0.40.0
 pydantic>=2.0.0
 pyyaml>=6.0

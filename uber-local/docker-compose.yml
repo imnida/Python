@@ -1,0 +1,93 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru --save 60 1
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  ingestion:
+    build: ./ingestion
+    ports:
+      - "8001:8001"
+    environment:
+      - REDIS_HOST=redis
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  processor:
+    build: ./processor
+    environment:
+      - REDIS_HOST=redis
+      - DB_PATH=/data/gps.db
+      - BATCH_SIZE=100
+    volumes:
+      - sqlite_data:/data
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  dispatch:
+    build: ./dispatch
+    ports:
+      - "8002:8002"
+    environment:
+      - REDIS_HOST=redis
+      - DB_PATH=/data/gps.db
+    volumes:
+      - sqlite_data:/data
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  dashboard:
+    build: ./dashboard
+    ports:
+      - "8080:8080"
+    environment:
+      - REDIS_HOST=redis
+      - CENTER_LAT=${CENTER_LAT:-48.8566}
+      - CENTER_LNG=${CENTER_LNG:-2.3522}
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  simulator:
+    build: ./simulator
+    environment:
+      - INGESTION_URL=http://ingestion:8001
+      - NUM_DRIVERS=${NUM_DRIVERS:-200}
+      - CENTER_LAT=${CENTER_LAT:-48.8566}
+      - CENTER_LNG=${CENTER_LNG:-2.3522}
+    depends_on:
+      ingestion:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  sqlite_data:

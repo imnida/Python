@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Uber Local — Raspberry Pi 5</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #111; }
+    #map { height: 100vh; }
+
+    #panel {
+      position: absolute;
+      top: 12px; right: 12px;
+      z-index: 1000;
+      background: rgba(15,15,15,0.88);
+      backdrop-filter: blur(6px);
+      color: #eee;
+      padding: 14px 18px;
+      border-radius: 10px;
+      min-width: 220px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    #panel h2 { font-size: 14px; font-weight: 600; margin-bottom: 10px; color: #fff; letter-spacing: 0.5px; }
+    .row { display: flex; justify-content: space-between; font-size: 12px; margin: 5px 0; }
+    .label { color: #aaa; }
+    .value { font-weight: 700; color: #4ade80; }
+    .value.blue { color: #60a5fa; }
+    .value.red  { color: #f87171; }
+    hr { border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 8px 0; }
+
+    #dispatch-panel {
+      position: absolute;
+      bottom: 20px; left: 12px;
+      z-index: 1000;
+      background: rgba(15,15,15,0.88);
+      backdrop-filter: blur(6px);
+      color: #eee;
+      padding: 14px 18px;
+      border-radius: 10px;
+      min-width: 280px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    #dispatch-panel h2 { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+    #dispatch-panel p  { font-size: 11px; color: #aaa; margin-bottom: 6px; }
+    #dispatch-result   { font-size: 11px; margin-top: 6px; max-height: 150px; overflow-y: auto; }
+    .driver-item { padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+
+    .dot-green  { display:inline-block; width:8px; height:8px; border-radius:50%; background:#4ade80; margin-right:4px; }
+    .dot-blue   { display:inline-block; width:8px; height:8px; border-radius:50%; background:#60a5fa; margin-right:4px; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <!-- Stats panel -->
+  <div id="panel">
+    <h2>🚗 Uber Local — Raspberry Pi 5</h2>
+    <div class="row"><span class="label">Drivers actifs</span><span class="value" id="count">0</span></div>
+    <div class="row"><span class="label">Disponibles</span><span class="value" id="available">0</span></div>
+    <div class="row"><span class="label">Occupés</span><span class="value blue" id="busy">0</span></div>
+    <hr>
+    <div class="row"><span class="label">Pings/sec</span><span class="value" id="pps">0</span></div>
+    <div class="row"><span class="label">Total reçus</span><span class="value" id="total">0</span></div>
+    <hr>
+    <div class="row"><span class="label">WebSocket</span><span class="value" id="ws-status">…</span></div>
+  </div>
+
+  <!-- Dispatch test panel -->
+  <div id="dispatch-panel">
+    <h2>⚡ Dispatch Engine — test</h2>
+    <p>Cliquez sur la carte pour trouver les drivers proches</p>
+    <div id="dispatch-result"></div>
+  </div>
+
+  <script src="/config.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const center = window.MAP_CENTER || [48.8566, 2.3522];
+    const map = L.map('map', { zoomControl: false }).setView(center, 13);
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '© OpenStreetMap © CARTO',
+      subdomains: 'abcd', maxZoom: 19
+    }).addTo(map);
+
+    // ── Driver markers ────────────────────────────────────────────────
+    const markers  = {};
+    const statuses = {};
+
+    function makeIcon(status) {
+      const color = status === 'available' ? '#4ade80' : '#60a5fa';
+      return L.divIcon({
+        html: `<div style="
+          background:${color};width:9px;height:9px;border-radius:50%;
+          border:2px solid rgba(255,255,255,0.8);
+          box-shadow:0 0 4px ${color}88;
+        "></div>`,
+        iconSize: [13, 13], iconAnchor: [6, 6], className: '',
+      });
+    }
+
+    // ── Stats ─────────────────────────────────────────────────────────
+    let pingCount = 0, totalPings = 0, lastStatTime = Date.now();
+
+    function updateStats() {
+      const now   = Date.now();
+      const dt    = (now - lastStatTime) / 1000;
+      const pps   = Math.round(pingCount / dt);
+      pingCount   = 0;
+      lastStatTime = now;
+      totalPings  += (pps * dt | 0);
+
+      let avail = 0, busyCnt = 0;
+      for (const s of Object.values(statuses)) {
+        if (s === 'available') avail++; else busyCnt++;
+      }
+      document.getElementById('count').textContent     = Object.keys(markers).length;
+      document.getElementById('available').textContent = avail;
+      document.getElementById('busy').textContent      = busyCnt;
+      document.getElementById('pps').textContent       = pps;
+      document.getElementById('total').textContent     = totalPings.toLocaleString();
+    }
+    setInterval(updateStats, 1000);
+
+    // ── WebSocket ─────────────────────────────────────────────────────
+    function connect() {
+      const ws = new WebSocket(`ws://${location.host}/ws`);
+      const el = document.getElementById('ws-status');
+
+      ws.onopen = () => {
+        el.textContent = 'connecté'; el.className = 'value';
+      };
+      ws.onmessage = ({ data }) => {
+        const updates = JSON.parse(data);
+        pingCount += updates.length;
+        for (const u of updates) {
+          const { driver_id, lat, lng, bearing, status } = u;
+          statuses[driver_id] = status;
+          if (markers[driver_id]) {
+            markers[driver_id].setLatLng([lat, lng]);
+            markers[driver_id].setIcon(makeIcon(status));
+          } else {
+            markers[driver_id] = L.marker([lat, lng], { icon: makeIcon(status) })
+              .bindPopup(`<b>${driver_id}</b><br>Status: ${status}`)
+              .addTo(map);
+          }
+        }
+      };
+      ws.onclose = () => {
+        el.textContent = 'reconnexion…'; el.className = 'value red';
+        setTimeout(connect, 2000);
+      };
+      ws.onerror = () => ws.close();
+    }
+    connect();
+
+    // ── Dispatch on map click ─────────────────────────────────────────
+    let pickupMarker = null;
+    map.on('click', async ({ latlng }) => {
+      if (pickupMarker) map.removeLayer(pickupMarker);
+      pickupMarker = L.marker(latlng, {
+        icon: L.divIcon({
+          html: '<div style="background:#f59e0b;width:14px;height:14px;border-radius:50%;border:3px solid #fff;"></div>',
+          iconSize:[20,20], iconAnchor:[10,10], className:'',
+        })
+      }).bindPopup('📍 Pickup').addTo(map).openPopup();
+
+      const url = `http://${location.hostname}:8002/drivers/nearby?lat=${latlng.lat}&lng=${latlng.lng}&radius_km=3&limit=5`;
+      try {
+        const resp  = await fetch(url);
+        const data  = await resp.json();
+        const el    = document.getElementById('dispatch-result');
+        if (!data.drivers.length) {
+          el.innerHTML = '<i style="color:#aaa">Aucun driver disponible dans ce rayon.</i>';
+          return;
+        }
+        el.innerHTML = data.drivers.map((d, i) =>
+          `<div class="driver-item">
+            <span class="dot-green"></span>
+            <b>${d.driver_id}</b> — ${d.distance_km} km (~${d.eta_min} min)
+          </div>`
+        ).join('');
+      } catch(e) {
+        document.getElementById('dispatch-result').textContent = 'Dispatch API indisponible';
+      }
+    });
+  </script>
+</body>
+</html>

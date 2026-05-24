@@ -1,0 +1,14 @@
+# Core (always required)
+numpy>=1.24
+requests>=2.28
+
+# Distributed pipeline
+pyspark>=3.4          # spark_udfs.py, airflow_dag.py
+delta-spark>=2.4      # Delta Lake writes in spark_udfs.py
+
+# Orchestration
+apache-airflow>=2.7   # airflow_dag.py
+
+# Optional: real embedding models
+# sentence-transformers>=2.2   # drop-in for mock_embedding
+# openai>=1.0                  # OpenAI text-embedding-3-small

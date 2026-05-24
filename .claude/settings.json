@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python agentic_os/memory_manager.py *)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python agentic_os/memory_manager.py sync"
+          }
+        ]
+      }
+    ]
+  }
+}

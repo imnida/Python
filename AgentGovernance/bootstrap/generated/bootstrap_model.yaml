@@ -110,6 +110,21 @@ layers:
     - PatternAnalyzer
     - RuleRefiner
     - ModelUpdateTrigger
+  - name: ArchiMateWriter
+    type: ApplicationComponent
+    description: Human-gated write-back endpoint to the Archi model via REST API
+    functions:
+    - ElementUpsert
+    - RelationshipUpsert
+    - ModelImport
+    - HumanApprovalGate
+  - name: ArchiMateGeneratorAgent
+    type: ApplicationComponent
+    description: Hybrid rule+LLM agent that generates and pushes ArchiMate models
+    functions:
+    - StructuralInference
+    - SemanticEnrichment
+    - ModelPush
   - name: ArchiMateModel
     type: DataObject
     description: Enterprise architecture model (XML/Archi)
@@ -326,6 +341,59 @@ relationships:
 - from: FeedbackProcessor
   to: ThresholdExceeded
   type: Triggering
+- from: ArchiMateWriter
+  to: ArchiMateGeneratorAgent
+  type: Serving
+  forbidden: false
+- from: ArchiMateWriter
+  to: ArchiMateModel
+  type: Access
+  access: write
+  forbidden: false
+- from: ArchiMateWriter
+  to: GuardrailCorpus
+  type: Access
+  access: write
+  forbidden: true
+- from: ArchiMateWriter
+  to: AGTPolicyDocument
+  type: Access
+  access: write
+  forbidden: true
+- from: ArchiMateWriter
+  to: AGTAuditLog
+  type: Access
+  access: write
+  forbidden: true
+- from: ArchiMateGeneratorAgent
+  to: ArchiMateWriter
+  type: Serving
+  forbidden: false
+- from: ArchiMateGeneratorAgent
+  to: ArchiMateModel
+  type: Access
+  access: read
+  forbidden: false
+- from: ArchiMateGeneratorAgent
+  to: GuardrailCorpus
+  type: Access
+  access: write
+  forbidden: true
+- from: ArchiMateGeneratorAgent
+  to: AGTPolicyDocument
+  type: Access
+  access: write
+  forbidden: true
+- from: ArchiMateGeneratorAgent
+  to: AGTAuditLog
+  type: Access
+  access: write
+  forbidden: true
+- from: ArchiMateGeneratorAgent
+  to: ToolRegistry
+  type: Access
+  access: write
+  forbidden: true
 events:
 - ViolationDetected
 - PolicyLoaded

@@ -11,9 +11,10 @@ Pipeline:
   4. Write YAML            (tools.py)      — governed write_archimate_model tool
 
 Usage:
-    python -m AgentGovernance.archimate_agent               # default components.py
-    python -m AgentGovernance.archimate_agent path/to/comps.py [output.yaml]
-    python -m AgentGovernance.archimate_agent ... --boucle0 # also runs Boucle 0
+    python -m AgentGovernance.archimate_agent                             # default
+    python -m AgentGovernance.archimate_agent path/to/comps.py [out.yaml]
+    python -m AgentGovernance.archimate_agent ... --boucle0               # + Boucle 0
+    python -m AgentGovernance.archimate_agent ... --archiserver http://localhost:8080
 """
 
 from __future__ import annotations
@@ -77,11 +78,13 @@ class ArchiMateGeneratorAgent:
         policy_path:  Path,
         output_path:  Path,
         run_boucle0:  bool = False,
+        archiserver:  str | None = None,
     ) -> None:
         self.source_path = source_path
         self.policy_path = policy_path
         self.output_path = output_path
         self.run_boucle0 = run_boucle0
+        self.archiserver = archiserver
         self.client      = anthropic.Anthropic()
 
     # ── Public entry point ────────────────────────────────────────────────────
@@ -110,10 +113,16 @@ class ArchiMateGeneratorAgent:
             from ..bootstrap.boucle0 import run as _run
             boucle0_fn = lambda: _run(auto_approve=True)
 
-        tools = make_tools(state, evaluator, self.output_path, boucle0_fn)
+        tools = make_tools(
+            state, evaluator, self.output_path, boucle0_fn,
+            archiserver=self.archiserver,
+        )
 
         # Step 3 — LLM enrichment loop
-        messages   = [{"role": "user", "content": _user_message(skeleton)}]
+        archi_note = f"  ArchiServer: {self.archiserver}" if self.archiserver else ""
+        if archi_note:
+            print(archi_note)
+        messages   = [{"role": "user", "content": _user_message(skeleton, self.archiserver)}]
         final_text = self._loop(messages, tools, evaluator)
 
         # Summary
@@ -189,7 +198,7 @@ class ArchiMateGeneratorAgent:
 
 # ── Prompt builders ───────────────────────────────────────────────────────────
 
-def _user_message(skeleton: dict[str, Any]) -> str:
+def _user_message(skeleton: dict[str, Any], archiserver: str | None = None) -> str:
     lines = []
     for c in skeleton["components_summary"]:
         block = [f"• {c['name']}: {c['description']}"]
@@ -212,11 +221,18 @@ def _user_message(skeleton: dict[str, Any]) -> str:
             for item in items:
                 existing += f"  [{item['severity']}] {item['id']}: {item['text']}\n"
 
+    push_note = (
+        f"\n\nAn ArchiMateWriter endpoint is available at {archiserver}. "
+        "After calling write_archimate_model, use push_to_archiserver to push the "
+        "generated elements and relationships (dry_run=true first, then dry_run=false)."
+        if archiserver else ""
+    )
     return (
         "Here are the components of the governance harness:\n\n"
         + "\n\n".join(lines)
         + "\n\nExisting motivation elements already loaded into the model:"
         + (existing or "\n  (none)")
+        + push_note
         + "\n\nPlease enrich the model. When done, call write_archimate_model."
     )
 
@@ -258,6 +274,10 @@ def main() -> None:
                        base / "bootstrap" / "generated" / "agent_generated_model.yaml")
     policy_path  = base / "policies" / "harness_policy.yaml"
     run_boucle0  = "--boucle0" in sys.argv
+    archiserver  = next(
+        (sys.argv[i + 1] for i, a in enumerate(sys.argv) if a == "--archiserver"),
+        None,
+    )
 
     for path, label in [(source_path, "source"), (policy_path, "policy")]:
         if not path.exists():
@@ -265,10 +285,11 @@ def main() -> None:
             sys.exit(1)
 
     ArchiMateGeneratorAgent(
-        source_path = source_path,
-        policy_path = policy_path,
-        output_path = output_path,
-        run_boucle0 = run_boucle0,
+        source_path  = source_path,
+        policy_path  = policy_path,
+        output_path  = output_path,
+        run_boucle0  = run_boucle0,
+        archiserver  = archiserver,
     ).generate()
 
 

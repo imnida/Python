@@ -100,12 +100,14 @@ tool_map:
     - auditlog_inject
     - auditlog_backfill
 
-  # gr: "must not write to ArchiMateModel" (AGT)
+  # gr: "must not write to ArchiMateModel" (AGT, ArchiMateGeneratorAgent)
   "must not write to archimatemodel":
     - archimate_write
     - archimate_patch
     - archimate_overwrite
     - model_write_direct
+    - archiserver_write_direct
+    - bypass_archiwriter
 
   # gr: "must not write to ToolRegistry" (AGT, FeedbackProcessor)
   "must not write to toolregistry":

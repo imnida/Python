@@ -105,6 +105,22 @@ COMPONENTS: list[Component] = [
         forbidden_writes=["AGTPolicyDocument", "AGTAuditLog", "ToolRegistry"],
         triggers=["ThresholdExceeded"],
     ),
+    Component(
+        name="ArchiMateWriter",
+        description="Human-gated write-back endpoint to the Archi model via REST API",
+        functions=["ElementUpsert", "RelationshipUpsert", "ModelImport", "HumanApprovalGate"],
+        serves=["ArchiMateGeneratorAgent"],
+        writes=["ArchiMateModel"],
+        forbidden_writes=["GuardrailCorpus", "AGTPolicyDocument", "AGTAuditLog"],
+    ),
+    Component(
+        name="ArchiMateGeneratorAgent",
+        description="Hybrid rule+LLM agent that generates and pushes ArchiMate models",
+        functions=["StructuralInference", "SemanticEnrichment", "ModelPush"],
+        serves=["ArchiMateWriter"],
+        reads=["ArchiMateModel"],
+        forbidden_writes=["GuardrailCorpus", "AGTPolicyDocument", "AGTAuditLog", "ToolRegistry"],
+    ),
 ]
 
 # ── Data Objects ──────────────────────────────────────────────────────────────

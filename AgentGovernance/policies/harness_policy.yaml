@@ -216,6 +216,8 @@ rules:
     - archimate_patch
     - archimate_overwrite
     - model_write_direct
+    - archiserver_write_direct
+    - bypass_archiwriter
   action: deny
   priority: 100
   message: 'gr-0020: AGT must not write to ArchiMateModel'
@@ -291,6 +293,89 @@ rules:
   action: deny
   priority: 100
   message: 'gr-0026: FeedbackProcessor must not write to ToolRegistry'
+- name: gr-0027-archimatewriter-must-not-write-to-guardr
+  condition:
+    field: tool_name
+    operator: in
+    value:
+    - guardrailcorpus_write
+    - guardrailcorpus_delete
+    - guardrailcorpus_patch
+    - guardrailcorpus_import
+  action: deny
+  priority: 100
+  message: 'gr-0027: ArchiMateWriter must not write to GuardrailCorpus'
+- name: gr-0028-archimatewriter-must-not-write-to-agtpol
+  condition:
+    field: tool_name
+    operator: in
+    value:
+    - policydocument_write
+    - policydocument_patch
+    - policydocument_overwrite
+    - policy_direct_write
+  action: deny
+  priority: 100
+  message: 'gr-0028: ArchiMateWriter must not write to AGTPolicyDocument'
+- name: gr-0029-archimatewriter-must-not-write-to-agtaud
+  condition:
+    field: tool_name
+    operator: in
+    value:
+    - auditlog_write_external
+    - auditlog_inject
+    - auditlog_backfill
+  action: deny
+  priority: 100
+  message: 'gr-0029: ArchiMateWriter must not write to AGTAuditLog'
+- name: gr-0030-archimategeneratoragent-must-not-write-t
+  condition:
+    field: tool_name
+    operator: in
+    value:
+    - guardrailcorpus_write
+    - guardrailcorpus_delete
+    - guardrailcorpus_patch
+    - guardrailcorpus_import
+  action: deny
+  priority: 100
+  message: 'gr-0030: ArchiMateGeneratorAgent must not write to GuardrailCorpus'
+- name: gr-0031-archimategeneratoragent-must-not-write-t
+  condition:
+    field: tool_name
+    operator: in
+    value:
+    - policydocument_write
+    - policydocument_patch
+    - policydocument_overwrite
+    - policy_direct_write
+  action: deny
+  priority: 100
+  message: 'gr-0031: ArchiMateGeneratorAgent must not write to AGTPolicyDocument'
+- name: gr-0032-archimategeneratoragent-must-not-write-t
+  condition:
+    field: tool_name
+    operator: in
+    value:
+    - auditlog_write_external
+    - auditlog_inject
+    - auditlog_backfill
+  action: deny
+  priority: 100
+  message: 'gr-0032: ArchiMateGeneratorAgent must not write to AGTAuditLog'
+- name: gr-0033-archimategeneratoragent-must-not-write-t
+  condition:
+    field: tool_name
+    operator: in
+    value:
+    - toolregistry_write
+    - toolregistry_patch
+    - toolregistry_delete
+    - toolregistry_update
+    - toolregistry_import
+  action: deny
+  priority: 100
+  message: 'gr-0033: ArchiMateGeneratorAgent must not write to ToolRegistry'
 - name: gr-0014-policy-reload-after-every-guardrail-upda
   condition:
     field: tool_name

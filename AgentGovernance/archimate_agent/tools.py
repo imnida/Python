@@ -63,6 +63,7 @@ def make_tools(
     evaluator:   PolicyEvaluator,
     output_path: Path,
     boucle0_fn:  Callable | None = None,
+    archiserver: str | None = None,
 ) -> dict[str, Callable]:
     """Return a dict of governed tool callables keyed by tool name."""
 
@@ -181,6 +182,64 @@ def make_tools(
         boucle0_fn()
         return "Boucle 0 completed — AGT policy updated from new model"
 
+    def push_to_archiserver(
+        base_url: str = "",
+        elements: list | None = None,
+        relationships: list | None = None,
+        dry_run: bool = True,
+    ) -> str:
+        """
+        Write generated elements back to the Archi model via ArchiMateWriter REST API.
+        Always routed through ArchiMateWriter (human-gated component).
+        dry_run=True (default) performs validation only — no writes.
+        """
+        _guard("push_to_archiserver")
+        url           = base_url or archiserver or ""
+        if not url:
+            return "Error: no ArchiServer URL — pass base_url or start agent with --archiserver"
+        base_url      = url
+        elements      = elements      or []
+        relationships = relationships or []
+        total = len(elements) + len(relationships)
+
+        if dry_run:
+            return (
+                f"[dry-run] Would push {len(elements)} elements "
+                f"+ {len(relationships)} relationships to {base_url}"
+            )
+
+        try:
+            import httpx
+        except ImportError:
+            return "Error: httpx not installed — run: pip install httpx"
+
+        pushed, errors = 0, []
+        if elements:
+            r = httpx.post(
+                f"{base_url}/api/elements/batch",
+                json={"elements": elements},
+                timeout=30,
+            )
+            if r.is_success:
+                pushed += len(elements)
+            else:
+                errors.append(f"elements: {r.status_code} {r.text[:120]}")
+
+        if relationships:
+            r = httpx.post(
+                f"{base_url}/api/relationships/batch",
+                json={"relationships": relationships},
+                timeout=30,
+            )
+            if r.is_success:
+                pushed += len(relationships)
+            else:
+                errors.append(f"relationships: {r.status_code} {r.text[:120]}")
+
+        if errors:
+            return f"Partial push ({pushed}/{total}). Errors: {'; '.join(errors)}"
+        return f"Pushed {pushed} items to {base_url}"
+
     return {
         "add_principle":         add_principle,
         "add_constraint":        add_constraint,
@@ -189,6 +248,7 @@ def make_tools(
         "add_relationship":      add_relationship,
         "write_archimate_model": write_archimate_model,
         "run_boucle0":           run_boucle0,
+        "push_to_archiserver":   push_to_archiserver,
     }
 
 
@@ -328,6 +388,40 @@ TOOL_DEFINITIONS: list[dict] = [
             "type": "object",
             "properties": {},
             "required": [],
+        },
+    },
+    {
+        "name": "push_to_archiserver",
+        "description": (
+            "Push generated elements and relationships to the live Archi model via "
+            "the ArchiMateWriter REST endpoint. "
+            "Always use dry_run=true first to validate before committing. "
+            "Requires human approval (R2) — the ArchiMateWriter component enforces the gate."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "base_url": {
+                    "type": "string",
+                    "description": "ArchiMateWriter base URL, e.g. http://localhost:8080",
+                },
+                "elements": {
+                    "type": "array",
+                    "description": "ApplicationComponent or DataObject dicts to upsert",
+                    "items": {"type": "object"},
+                },
+                "relationships": {
+                    "type": "array",
+                    "description": "Relationship dicts to upsert",
+                    "items": {"type": "object"},
+                },
+                "dry_run": {
+                    "type": "boolean",
+                    "description": "If true (default), validate only — no writes",
+                    "default": True,
+                },
+            },
+            "required": ["base_url"],
         },
     },
 ]

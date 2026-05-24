@@ -1,0 +1,17 @@
+# PII Content Governance Policy
+# Detects and blocks outputs containing personally identifiable information.
+#
+# ⚠️  SAMPLE CONFIGURATION — review and extend before production use.
+
+version: "1.0"
+name: pii-content-policy
+description: >
+  Blocks agent outputs that contain PII patterns such as email addresses,
+  phone numbers, SSNs, credit card numbers, and API keys.
+
+builtin_patterns:
+  email: '[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+'
+  phone: '(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}'
+  ssn: '\b\d{3}-\d{2}-\d{4}\b'
+  credit_card: '\b(?:\d[ -]*?){13,19}\b'
+  api_key: '(?:api[_-]?key|secret[_-]?key|access[_-]?token|bearer)[\s:=]+[''"]?[A-Za-z0-9_\-]{16,}[''"]?'

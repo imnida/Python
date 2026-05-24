@@ -1,0 +1,98 @@
+# Data Science Agent Policy
+# Governs AI agent actions in ML/data science workflows.
+#
+# Usage:
+#   from agent_os.policies import PolicyDocument, PolicyEvaluator
+#   doc = PolicyDocument.from_yaml("policies/data_science_policy.yaml")
+
+version: "1.0"
+name: data-science-agent-policy
+description: >
+  Governance policy for data science AI agents. Enforces read-only data access,
+  blocks destructive operations, and limits model inference to approved endpoints.
+
+defaults:
+  action: allow
+  max_tokens: 8192
+  max_tool_calls: 50
+  confidence_threshold: 0.85
+
+rules:
+  - name: block-destructive-file-ops
+    condition:
+      field: tool_name
+      operator: in
+      value:
+        - delete_file
+        - overwrite_dataset
+        - drop_table
+        - truncate_table
+        - rm_recursive
+    action: deny
+    priority: 100
+    message: "Destructive file/data operations are not permitted in data science workflows."
+
+  - name: block-external-data-exfiltration
+    condition:
+      field: tool_name
+      operator: in
+      value:
+        - send_email
+        - upload_to_external
+        - post_to_slack
+        - ftp_upload
+        - s3_upload_public
+    action: deny
+    priority: 90
+    message: "External data uploads require explicit authorization outside this policy."
+
+  - name: block-code-execution
+    condition:
+      field: tool_name
+      operator: in
+      value:
+        - execute_shell
+        - run_arbitrary_code
+        - eval_string
+        - subprocess_call
+    action: deny
+    priority: 85
+    message: "Arbitrary code execution is blocked. Use approved notebook kernels instead."
+
+  - name: allow-read-operations
+    condition:
+      field: tool_name
+      operator: in
+      value:
+        - read_csv
+        - read_parquet
+        - read_json
+        - query_database_readonly
+        - fetch_model_metrics
+        - load_dataset
+    action: allow
+    priority: 50
+    message: "Read-only data operations are permitted."
+
+  - name: allow-model-inference
+    condition:
+      field: tool_name
+      operator: in
+      value:
+        - predict
+        - classify
+        - generate_embedding
+        - run_inference
+        - score_model
+    action: allow
+    priority: 50
+    message: "Model inference operations are permitted."
+
+  - name: block-high-token-usage
+    condition:
+      field: token_count
+      operator: gt
+      value: 100000
+    action: deny
+    priority: 70
+    message: "Token count exceeds the 100,000 limit for data science agents."

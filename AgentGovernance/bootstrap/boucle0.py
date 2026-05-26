@@ -76,12 +76,45 @@ def etape0(model_path: Path, components_path: Path | None = None) -> dict[str, A
     model = bootstrapper.generate()
     s = bootstrapper.stats(model)
     print(f"  ✅ {model_path.name} généré")
-    print(f"     {s['components']} composants · {s['data_objects']} data objects"
-          + (f" · {s['business_roles']} rôles" if s['business_roles'] else "")
-          + (f" · {s['artifacts']} artefacts" if s['artifacts'] else ""))
-    print(f"     {s['principles']} principes · {s['constraints']} contraintes · "
-          f"{s['requirements']} exigences")
-    print(f"     {s['relationships']} relations dont {s['forbidden']} interdites")
+    # Business layer counts
+    biz_parts = []
+    if s.get("business_actors"):    biz_parts.append(f"{s['business_actors']} acteurs")
+    if s.get("business_roles"):     biz_parts.append(f"{s['business_roles']} rôles")
+    if s.get("business_processes"): biz_parts.append(f"{s['business_processes']} processus")
+    if s.get("business_services"):  biz_parts.append(f"{s['business_services']} services biz")
+    # Application layer counts
+    app_parts = []
+    app_parts.append(f"{s.get('components', 0)} composants")
+    if s.get("app_services"):    app_parts.append(f"{s['app_services']} services app")
+    if s.get("app_interfaces"):  app_parts.append(f"{s['app_interfaces']} interfaces")
+    app_parts.append(f"{s.get('data_objects', 0)} data objects")
+    # Technology layer counts
+    tech_parts = []
+    if s.get("nodes"):            tech_parts.append(f"{s['nodes']} nœuds")
+    if s.get("system_softwares"): tech_parts.append(f"{s['system_softwares']} logiciels")
+    if s.get("tech_services"):    tech_parts.append(f"{s['tech_services']} services tech")
+    # Strategy
+    strat_parts = []
+    if s.get("capabilities"):   strat_parts.append(f"{s['capabilities']} capacités")
+    if s.get("value_streams"):  strat_parts.append(f"{s['value_streams']} value streams")
+    # Implementation
+    impl_parts = []
+    if s.get("deliverables"):  impl_parts.append(f"{s['deliverables']} livrables")
+    if s.get("plateaus"):      impl_parts.append(f"{s['plateaus']} plateaux")
+    if s.get("gaps"):          impl_parts.append(f"{s['gaps']} gaps")
+    if biz_parts:   print(f"     Business    : {' · '.join(biz_parts)}")
+    if app_parts:   print(f"     Application : {' · '.join(app_parts)}")
+    if tech_parts:  print(f"     Technology  : {' · '.join(tech_parts)}")
+    if strat_parts: print(f"     Stratégie   : {' · '.join(strat_parts)}")
+    if impl_parts:  print(f"     Impl.       : {' · '.join(impl_parts)}")
+    mot_line = (f"     Motivation  : "
+                f"{s.get('drivers', 0)} drivers · {s.get('goals', 0)} goals · "
+                f"{s.get('principles', 0)} principes · "
+                f"{s.get('constraints', 0)} contraintes · "
+                f"{s.get('requirements', 0)} exigences")
+    print(mot_line)
+    print(f"     Relations   : {s['relationships']} dont {s['forbidden']} interdites"
+          + (f" · {s.get('realizations', 0)} réalisations" if s.get("realizations") else ""))
     return model
 
 

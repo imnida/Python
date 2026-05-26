@@ -19,12 +19,24 @@ Key tools:
 
 from __future__ import annotations
 
-from .components import (
-    ArchitectureArtifact,
-    BusinessRole,
-    Component,
-    DataObject,
-    MotivationElement,
+from .archimate import (
+    # Motivation
+    Stakeholder, Driver, Assessment, Goal, MotivationElement,
+    # Strategy
+    Capability, ValueStream, CourseOfAction,
+    # Business
+    BusinessActor, BusinessRole, BusinessProcess, BusinessService,
+    BusinessEvent, BusinessObject,
+    # Application
+    ApplicationComponent as Component, ApplicationInterface, ApplicationService,
+    ApplicationProcess, DataObject,
+    # Technology
+    Node, Device, SystemSoftware, TechnologyCollaboration, TechnologyInterface,
+    TechnologyService, Artifact, CommunicationNetwork,
+    # Implementation
+    WorkPackage, Deliverable, Plateau, Gap,
+    # Relationships & legacy
+    Relationship, ArchitectureArtifact,
 )
 
 
@@ -413,4 +425,348 @@ MOTIVATION: list[MotivationElement] = [
         "Capability models must be version-controlled with Git checkpoints"),
     MotivationElement("TR-R4", "Requirement", "may",
         "Architecture views should be auto-laid out after element creation"),
+]
+
+# ── Motivation enrichment ─────────────────────────────────────────────────────
+
+STAKEHOLDERS: list[Stakeholder] = [
+    Stakeholder("EnterpriseArchitectUser",
+                "Primary human using the toolset to model and govern architecture",
+                concerns=["Model accuracy", "Tool interoperability", "AI safety"]),
+    Stakeholder("AIAgentOperator",
+                "Developer deploying AI agents against the ecosystem",
+                concerns=["API stability", "Dry-run safety", "Idempotency"]),
+    Stakeholder("PlatformAdministrator",
+                "Maintains archi-server, archguard corpus, workflow definitions",
+                concerns=["Service availability", "Data integrity", "Access control"]),
+]
+
+DRIVERS: list[Driver] = [
+    Driver("TRD1", "Model automation demand",
+           "Architects need AI-driven automation that safely writes to the ArchiMate model",
+           category="external", associated_to=["EnterpriseArchitectUser", "AIAgentOperator"]),
+    Driver("TRD2", "Governance corpus management",
+           "Growing guardrail corpus requires structured lifecycle management beyond flat files",
+           category="internal", associated_to=["PlatformAdministrator"]),
+    Driver("TRD3", "Human-in-the-loop requirement",
+           "AI agent gate reviews must involve human approval, not automated bypass",
+           category="external", associated_to=["AIAgentOperator"]),
+]
+
+ASSESSMENTS: list[Assessment] = [
+    Assessment("TRA1", "Direct model write risk",
+               "AI agent bypasses archi-server and corrupts the .archimate file directly",
+               type="risk", associated_to=["TRD1"]),
+    Assessment("TRA2", "Gate bypass risk",
+               "checkpointflow await_event steps auto-approved without human review",
+               type="risk", associated_to=["TRD3"]),
+    Assessment("TRA3", "Idempotency gap opportunity",
+               "Using idempotencyKey prevents duplicate elements from parallel agent runs",
+               type="opportunity", associated_to=["TRD1"]),
+]
+
+GOALS: list[Goal] = [
+    Goal("TRG1", "SafeModelAutomation",
+         "AI agents write to the ArchiMate model only via archi-server with idempotency",
+         realized_by=["TR-P1", "TR-C1", "ModelWriteCapability"]),
+    Goal("TRG2", "HumanInLoopGovernance",
+         "Every gate review involves a human decision via checkpointflow await_event",
+         realized_by=["TR-P3", "TR-C3", "WorkflowGovernanceCapability"]),
+    Goal("TRG3", "EvidenceBasedQuality",
+         "Architecture review scores are grounded in cited evidence, not AI impressions",
+         realized_by=["TR-P4", "TR-C4", "EvidenceCapability"]),
+]
+
+# ── Strategy Layer ─────────────────────────────────────────────────────────────
+
+CAPABILITIES: list[Capability] = [
+    Capability("ModelWriteCapability",
+               "Write elements and relationships to ArchiMate model safely via archi-server",
+               realizes=["TRG1"]),
+    Capability("GuardrailQueryCapability",
+               "Search and retrieve architectural guardrails via archguard hybrid search",
+               realizes=["TRG1"]),
+    Capability("WorkflowGovernanceCapability",
+               "Execute governed ADM workflows with deterministic resume and gate reviews",
+               realizes=["TRG2"]),
+    Capability("EvidenceCapability",
+               "Evaluate architecture artefacts using EAROS rubrics with cited evidence",
+               realizes=["TRG3"]),
+    Capability("CapabilityModelingCapability",
+               "Author, render, and version-control business capability models",
+               realizes=["TRG1"]),
+]
+
+VALUE_STREAMS: list[ValueStream] = [
+    ValueStream("ModelingCycle",
+                "AI-assisted ArchiMate modelling from intent to committed model change",
+                stages=["Plan", "DryRun", "ApplyBOM", "VerifyModel", "Publish"],
+                realizes=["ModelWriteCapability"]),
+    ValueStream("GovernanceCycle",
+                "ADM gate review cycle from workflow trigger to human approval",
+                stages=["TriggerGate", "AwaitEvent", "HumanReview", "Approve", "Resume"],
+                realizes=["WorkflowGovernanceCapability"]),
+]
+
+# ── Business Layer ─────────────────────────────────────────────────────────────
+
+BUSINESS_ACTORS: list[BusinessActor] = [
+    BusinessActor("EnterpriseArchitectActor",
+                  "Human EA author using archi-server, EAROS, and the CLI tools",
+                  plays=["EnterpriseArchitect"]),
+    BusinessActor("AIAgentActor",
+                  "Autonomous AI agent (Claude, Copilot) driving modelling tasks",
+                  plays=["AIAgent"]),
+]
+
+BUSINESS_PROCESSES: list[BusinessProcess] = [
+    BusinessProcess("ModelChangeProcess",
+                    "Plan, dry-run, and apply a BOM batch change to the ArchiMate model",
+                    realizes=["ModelWriteService"],
+                    triggers=["ModelChanged"],
+                    assigned_to=["EnterpriseArchitect", "AIAgent"]),
+    BusinessProcess("GateReviewProcess",
+                    "Human reviews and approves a checkpointflow await_event gate",
+                    triggered_by=["GateReviewRequested"],
+                    realizes=["WorkflowService"],
+                    assigned_to=["ArchitectureBoard"]),
+    BusinessProcess("EvaluationProcess",
+                    "EAROS rubric-based evaluation of an architecture artefact with evidence",
+                    realizes=["EvaluationService"],
+                    assigned_to=["EnterpriseArchitect"]),
+    BusinessProcess("PublishProcess",
+                    "Publish approved ADM deliverables to Confluence after gate sign-off",
+                    triggered_by=["WorkflowCompleted"],
+                    realizes=["PublishService"],
+                    assigned_to=["AIAgent"]),
+]
+
+BUSINESS_SERVICES: list[BusinessService] = [
+    BusinessService("ModelWriteService",
+                    "Safe, idempotent write access to the ArchiMate model via archi-server"),
+    BusinessService("WorkflowService",
+                    "Deterministic, resumable ADM workflow execution with gate reviews"),
+    BusinessService("EvaluationService",
+                    "Evidence-based architecture quality assessment using EAROS"),
+    BusinessService("PublishService",
+                    "Automated publishing of architecture deliverables to Confluence"),
+]
+
+BUSINESS_EVENTS: list[BusinessEvent] = [
+    BusinessEvent("ModelChanged",     "A BOM operation committed a change to the ArchiMate model"),
+    BusinessEvent("GateReviewRequested", "checkpointflow await_event triggered for human review",
+                  triggers=["GateReviewProcess"]),
+    BusinessEvent("WorkflowCompleted","checkpointflow workflow reached its terminal state",
+                  triggers=["PublishProcess"]),
+    BusinessEvent("ReviewCompleted",  "EAROS evaluation finished and record persisted"),
+    BusinessEvent("ArtifactPublished","Deliverable published to Confluence via confpub-cli"),
+]
+
+BUSINESS_OBJECTS: list[BusinessObject] = [
+    BusinessObject("ChangeApproval",
+                   "Human decision record for a gate review or BOM change"),
+    BusinessObject("EvidenceBundle",
+                   "Cited excerpt + rubric dimension + score from an EAROS evaluation"),
+]
+
+# ── Application Layer additions ────────────────────────────────────────────────
+
+APP_INTERFACES: list[ApplicationInterface] = [
+    ApplicationInterface("ArchiServerRESTInterface",
+                         "HTTP REST API of archi-server at localhost:8765",
+                         protocol="REST", part_of="ArchiServer",
+                         serves=["ModelWriteService"]),
+    ApplicationInterface("ArchiMCPInterface",
+                         "MCP protocol interface exposing 28 tools to AI agents",
+                         protocol="MCP", part_of="ArchiMCPServer",
+                         serves=["ModelWriteService"]),
+    ApplicationInterface("ArchicliInterface",
+                         "TypeScript CLI for BOM operations and model stats",
+                         protocol="CLI", part_of="ArchicliTool",
+                         serves=["ModelWriteService"]),
+    ApplicationInterface("ArchguardCLI",
+                         "Python CLI for guardrail management and search",
+                         protocol="CLI", part_of="Archguard",
+                         serves=["GuardrailQueryCapability"]),
+    ApplicationInterface("CheckpointflowCLI",
+                         "CLI to start, resume, and inspect workflow executions",
+                         protocol="CLI", part_of="CheckpointFlow",
+                         serves=["WorkflowService"]),
+    ApplicationInterface("StrandsCLIInterface",
+                         "YAML-driven multi-agent orchestration CLI",
+                         protocol="CLI", part_of="StrandsCli",
+                         serves=["WorkflowService"]),
+]
+
+APP_SERVICES: list[ApplicationService] = [
+    ApplicationService("ModelQueryService",
+                       "Read-only query of ArchiMate model elements, relations, and views",
+                       serves=["ModelChangeProcess"],
+                       realized_by=["ArchiServer", "ArchiMCPServer"]),
+    ApplicationService("BOMApplyService",
+                       "Idempotent batch BOM application to the ArchiMate model",
+                       serves=["ModelChangeProcess"],
+                       realized_by=["ArchiServer"]),
+    ApplicationService("GuardrailSearchService",
+                       "Hybrid BM25 + semantic search over the guardrail corpus",
+                       serves=["ModelChangeProcess", "EvaluationProcess"],
+                       realized_by=["Archguard"]),
+    ApplicationService("WorkflowExecutionService",
+                       "Deterministic workflow execution with checkpointed state",
+                       serves=["GateReviewProcess"],
+                       realized_by=["CheckpointFlow"]),
+    ApplicationService("RubricEvaluationService",
+                       "EAROS evidence-based scoring of architecture artefacts",
+                       serves=["EvaluationProcess"],
+                       realized_by=["EAROS"]),
+]
+
+APP_PROCESSES: list[ApplicationProcess] = [
+    ApplicationProcess("BOMWorkflow",
+                       "Plan → Dry-run → Verify → Apply BOM to ArchiMate model",
+                       steps=["plan_changes", "dry_run", "verify_result", "apply_bom"],
+                       realizes=["BOMApplyService"]),
+    ApplicationProcess("EAROSWorkflow",
+                       "Load rubric → Collect evidence → Score → Generate report",
+                       steps=["load_rubric", "collect_evidence", "score_dimensions",
+                              "calibrate", "generate_report"],
+                       realizes=["RubricEvaluationService"]),
+]
+
+# ── Technology Layer ───────────────────────────────────────────────────────────
+
+NODES: list[Node] = [
+    Node("LocalDeveloperMachine",
+         "Developer workstation running Archi, archi-server, and all Python tools",
+         hosts=["ArchiJVM", "Python3Runtime", "SQLiteDB", "NodeJSRuntime"]),
+    Node("GitRepository",
+         "Remote Git repository hosting ArchiMate model, capability models, and workflows"),
+]
+
+SYSTEM_SOFTWARES: list[SystemSoftware] = [
+    SystemSoftware("ArchiJVM",
+                   "Java Virtual Machine running Archi with jArchi plugin",
+                   part_of="LocalDeveloperMachine",
+                   serves=["ArchiServer", "JArchiScriptingSystem"]),
+    SystemSoftware("Python3Runtime",
+                   "Python 3.11+ runtime for archguard, EAROS, checkpointflow, strands-cli",
+                   part_of="LocalDeveloperMachine",
+                   serves=["Archguard", "CheckpointFlow", "EAROS", "StrandsCli"]),
+    SystemSoftware("SQLiteDB",
+                   "SQLite database backing archguard's FTS5 guardrail search index",
+                   part_of="LocalDeveloperMachine",
+                   serves=["Archguard"]),
+    SystemSoftware("NodeJSRuntime",
+                   "Node.js runtime for archicli TypeScript CLI",
+                   part_of="LocalDeveloperMachine",
+                   serves=["ArchicliTool"]),
+]
+
+TECH_INTERFACES: list[TechnologyInterface] = [
+    TechnologyInterface("LocalhostHTTP8765",
+                        "HTTP interface serving archi-server REST API",
+                        protocol="HTTP", port=8765,
+                        part_of="LocalDeveloperMachine",
+                        serves=["ModelQueryService", "BOMApplyService"]),
+]
+
+TECH_SERVICES: list[TechnologyService] = [
+    TechnologyService("GitVersionControlService",
+                      "Git-based version control for ArchiMate model and capability models",
+                      serves=["EAWorkbench", "ECMStudio"],
+                      realized_by=["GitRepository"]),
+    TechnologyService("LocalFileSystemService",
+                      "File system storage for workflow state, YAML definitions, JSONL corpus",
+                      serves=["CheckpointFlow", "Archguard", "StrandsCli"],
+                      realized_by=["LocalDeveloperMachine"]),
+]
+
+NETWORKS: list[CommunicationNetwork] = [
+    CommunicationNetwork("LocalLoopback",
+                         "localhost network connecting CLI tools to archi-server",
+                         connects=["LocalDeveloperMachine"]),
+]
+
+ARTIFACTS: list[Artifact] = [
+    Artifact("ArchimateFile",          "The .archimate model file managed by Archi",  type="file"),
+    Artifact("GuardrailJSONL",         "archguard guardrail corpus (JSONL)",           type="json"),
+    Artifact("WorkflowStateFiles",     "checkpointflow persisted state in ~/.checkpointflow/", type="file"),
+    Artifact("BOMJSONFile",            "Bill of Materials JSON for archi-server batch", type="json"),
+    Artifact("EvaluationJSONFile",     "EAROS evaluation record (evaluation.schema.json)", type="json"),
+    Artifact("CapabilityModelJSONL",   "Business capability tree (JSONL, BCM format)",  type="json"),
+    Artifact("WorkflowDefinitionYAML", "checkpointflow / strands-cli workflow YAML",    type="yaml"),
+]
+
+# ── Implementation & Migration Layer ──────────────────────────────────────────
+
+PLATEAUS: list[Plateau] = [
+    Plateau("ManualModelingPlateau",
+            "Architect manually edits the .archimate file — no automation, no governance"),
+    Plateau("AssistedModelingPlateau",
+            "AI agents write to model via archi-server with BOM and idempotency",
+            realized_by=["ModelWriteCapability"]),
+    Plateau("GovernedModelingPlateau",
+            "Full governance: archi-server writes + checkpointflow gates + EAROS evaluation",
+            realized_by=["ModelWriteCapability", "WorkflowGovernanceCapability",
+                         "EvidenceCapability"]),
+]
+
+GAPS: list[Gap] = [
+    Gap("AutomationGap",
+        "Delta between manual modelling and AI-assisted modelling via archi-server",
+        from_plateau="ManualModelingPlateau",
+        to_plateau="AssistedModelingPlateau"),
+    Gap("GovernanceGap",
+        "Delta between AI-assisted modelling and fully governed modelling with gates",
+        from_plateau="AssistedModelingPlateau",
+        to_plateau="GovernedModelingPlateau"),
+]
+
+DELIVERABLES: list[Deliverable] = [
+    Deliverable("ArchiServerBOM",
+                "Approved BOM file for a model change batch operation"),
+    Deliverable("EAROSEvaluationRecord",
+                "Completed EAROS evaluation with evidence citations and gate verdict"),
+    Deliverable("PublishedDocumentSet",
+                "Set of ADM deliverables published to Confluence after gate approval"),
+]
+
+WORK_PACKAGES: list[WorkPackage] = [
+    WorkPackage("ModelingCycleWorkPackage",
+                "Plan → DryRun → Apply BOM → Verify → Publish cycle",
+                realizes=["ArchiServerBOM"]),
+    WorkPackage("EvaluationWorkPackage",
+                "EAROS rubric evaluation cycle for an architecture artefact",
+                realizes=["EAROSEvaluationRecord"]),
+]
+
+# ── Explicit Relationships ─────────────────────────────────────────────────────
+
+RELATIONSHIPS: list[Relationship] = [
+    # Strategy → Goals
+    Relationship("Realization", "ModelWriteCapability",         "TRG1"),
+    Relationship("Realization", "WorkflowGovernanceCapability", "TRG2"),
+    Relationship("Realization", "EvidenceCapability",           "TRG3"),
+    # Drivers → Goals (Influence)
+    Relationship("Influence", "TRD1", "TRG1", influence="+"),
+    Relationship("Influence", "TRD3", "TRG2", influence="+"),
+    # Agents realize Services
+    Relationship("Realization", "ArchiServer",    "ModelQueryService"),
+    Relationship("Realization", "ArchiServer",    "BOMApplyService"),
+    Relationship("Realization", "ArchiMCPServer", "ModelQueryService"),
+    Relationship("Realization", "Archguard",      "GuardrailSearchService"),
+    Relationship("Realization", "CheckpointFlow", "WorkflowExecutionService"),
+    Relationship("Realization", "EAROS",          "RubricEvaluationService"),
+    # Technology → Application (Serving via SystemSoftware)
+    Relationship("Serving", "ArchiJVM",     "ArchiServer"),
+    Relationship("Serving", "Python3Runtime","Archguard"),
+    Relationship("Serving", "Python3Runtime","CheckpointFlow"),
+    Relationship("Serving", "Python3Runtime","EAROS"),
+    Relationship("Serving", "NodeJSRuntime", "ArchicliTool"),
+    # Git → Application
+    Relationship("Serving", "GitVersionControlService", "EAWorkbench"),
+    Relationship("Serving", "GitVersionControlService", "ECMStudio"),
+    # LocalFile → Application
+    Relationship("Serving", "LocalFileSystemService", "CheckpointFlow"),
+    Relationship("Serving", "LocalFileSystemService", "Archguard"),
 ]

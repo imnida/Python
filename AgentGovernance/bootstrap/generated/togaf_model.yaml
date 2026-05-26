@@ -1,10 +1,105 @@
 meta:
-  name: harness-bootstrap-model
-  version: '1.0'
-  description: Self-describing ArchiMate model of the system
+  name: bootstrap-model
+  version: '2.0'
+  archimate: '3.2'
+  description: Self-describing ArchiMate model
   generated_by: ModelBootstrapper
-  note: "Generated from components \u2014 do not edit manually"
+  note: "Generated \u2014 do not edit manually"
 motivation:
+  stakeholders:
+  - name: SponsorOrganisation
+    description: Business unit initiating the ADM cycle
+    concerns:
+    - Strategic alignment
+    - Delivery timelines
+    - ROI
+    influences:
+    - TD1
+  - name: ArchitectureBoard
+    description: Governance body approving phase-gate transitions
+    concerns:
+    - Policy compliance
+    - Risk management
+    - Traceability
+    influences: []
+  - name: BusinessStakeholders
+    description: End users and business owners of architecture deliverables
+    concerns:
+    - Fitness for purpose
+    - Stakeholder sign-off
+    - Change impact
+    influences: []
+  drivers:
+  - id: TD1
+    name: Business transformation
+    description: Organisations undergoing strategic change require systematic architecture
+      governance
+    category: external
+    associated_to:
+    - SponsorOrganisation
+  - id: TD2
+    name: Digital complexity
+    description: Growing technical landscape makes ad-hoc architecture decisions unsustainable
+    category: internal
+    associated_to:
+    - ArchitectureBoard
+  - id: TD3
+    name: Regulatory compliance
+    description: Regulated industries require documented, traceable architecture decisions
+    category: external
+    associated_to:
+    - ArchitectureBoard
+  assessments:
+  - id: TA1
+    name: Architecture inconsistency risk
+    description: Uncoordinated phase agents produce conflicting deliverables
+    type: risk
+    associated_to:
+    - TD2
+  - id: TA2
+    name: Phase gate bypass risk
+    description: Agents transitioning phases without Architecture Board approval
+    type: risk
+    associated_to:
+    - TD1
+  - id: TA3
+    name: Baseline gap risk
+    description: Target architecture defined without establishing baseline first
+    type: risk
+    associated_to:
+    - TD2
+  - id: TA4
+    name: Traceability opportunity
+    description: Boucle 0 can automate traceability from requirements to policy rules
+    type: opportunity
+    associated_to:
+    - TD1
+  goals:
+  - id: TG1
+    name: ArchitectureAlignment
+    description: All architecture decisions are traceable to business strategy and
+      drivers
+    realized_by:
+    - TP2
+    - EnterpriseArchitectureCapability
+  - id: TG2
+    name: PhasedDelivery
+    description: Each ADM phase produces complete, approved deliverables before the
+      next begins
+    realized_by:
+    - TP1
+    - TP4
+    - ArchitectureGovernanceCapability
+  - id: TG3
+    name: ContinuousRequirements
+    description: Architecture requirements are continuously managed and traceable
+      across all phases
+    realized_by:
+    - TP5
+    - RequirementsManagementCapability
+  outcomes: []
+  values: []
+  meanings: []
   principles:
   - id: TP1
     severity: must
@@ -58,9 +153,76 @@ motivation:
   - id: TR4
     severity: may
     text: ADM cycle duration and phase scope may be tailored to project scale
+strategy:
+  resources: []
+  capabilities:
+  - name: EnterpriseArchitectureCapability
+    description: Develop and maintain enterprise architecture systematically across
+      all domains
+    realizes:
+    - TG1
+    served_by: []
+  - name: ArchitectureGovernanceCapability
+    description: Enforce architecture decisions and gate reviews via Architecture
+      Board
+    realizes:
+    - TG2
+    served_by: []
+  - name: RequirementsManagementCapability
+    description: Maintain traceable architecture requirements continuously across
+      ADM phases
+    realizes:
+    - TG3
+    served_by: []
+  - name: GapAnalysisCapability
+    description: Identify and document deltas between baseline and target architecture
+    realizes:
+    - TG1
+    served_by: []
+  value_streams:
+  - name: ADMLifecycle
+    description: End-to-end TOGAF ADM cycle delivering a target enterprise architecture
+    stages:
+    - Preliminary
+    - PhaseA
+    - PhaseB
+    - PhaseC1
+    - PhaseC2
+    - PhaseD
+    - PhaseE
+    - PhaseF
+    - PhaseG
+    - PhaseH
+    realizes:
+    - EnterpriseArchitectureCapability
+    - ArchitectureGovernanceCapability
+  courses_of_action:
+  - name: IterativeADM
+    description: Apply ADM cycle iteratively, tailoring scope and depth per project
+    realizes:
+    - EnterpriseArchitectureCapability
+  - name: ContinuousGovernance
+    description: Maintain Architecture Board oversight across all phases and transitions
+    realizes:
+    - ArchitectureGovernanceCapability
 layers:
 - name: Business
   elements:
+  - name: EnterpriseArchitecturePractice
+    type: BusinessActor
+    description: The EA team running the ADM cycle and governing phase transitions
+    plays:
+    - ChiefArchitect
+    - BusinessArchitect
+    - DataArchitect
+    - ApplicationArchitect
+    - TechnologyArchitect
+    - SolutionArchitect
+  - name: SponsorOrganisationActor
+    type: BusinessActor
+    description: Business unit sponsoring the architecture engagement
+    plays:
+    - Stakeholder
   - name: ArchitectureBoard
     type: BusinessRole
     description: 'Governance body: approves phase-gate transitions, issues architecture
@@ -117,6 +279,137 @@ layers:
       gates
     assigned_to:
     - PhaseAAgent
+  - name: PreliminaryProcess
+    type: BusinessProcess
+    description: Tailor the TOGAF framework, establish Architecture Repository and
+      principles
+    triggers:
+    - ArchitectureVisionApproved
+    realizes:
+    - ArchitectureService
+    assigned_to:
+    - ChiefArchitect
+  - name: ArchitectureVisionProcess
+    type: BusinessProcess
+    description: Define scope, identify stakeholders, obtain approval to proceed
+    triggered_by:
+    - PreliminaryCompleted
+    triggers:
+    - ArchitectureVisionApproved
+    realizes:
+    - ArchitectureService
+    assigned_to:
+    - ChiefArchitect
+    - Stakeholder
+  - name: BusinessArchitectureProcess
+    type: BusinessProcess
+    description: Develop baseline and target Business Architecture with gap analysis
+    triggered_by:
+    - ArchitectureVisionApproved
+    triggers:
+    - BusinessArchitectureApproved
+    realizes:
+    - ArchitectureService
+    assigned_to:
+    - BusinessArchitect
+  - name: DataArchitectureProcess
+    type: BusinessProcess
+    description: Develop baseline and target Data Architecture
+    triggered_by:
+    - BusinessArchitectureApproved
+    triggers:
+    - DataArchitectureApproved
+    realizes:
+    - ArchitectureService
+    assigned_to:
+    - DataArchitect
+  - name: ApplicationArchitectureProcess
+    type: BusinessProcess
+    description: Develop baseline and target Application Architecture
+    triggered_by:
+    - BusinessArchitectureApproved
+    triggers:
+    - ApplicationArchitectureApproved
+    realizes:
+    - ArchitectureService
+    assigned_to:
+    - ApplicationArchitect
+  - name: TechnologyArchitectureProcess
+    type: BusinessProcess
+    description: Develop baseline and target Technology Architecture
+    triggered_by:
+    - DataArchitectureApproved
+    - ApplicationArchitectureApproved
+    triggers:
+    - TechnologyArchitectureApproved
+    realizes:
+    - ArchitectureService
+    assigned_to:
+    - TechnologyArchitect
+  - name: ImplementationGovernanceProcess
+    type: BusinessProcess
+    description: Oversee implementation, issue Architecture Contracts, assess compliance
+    triggered_by:
+    - MigrationPlanApproved
+    triggers:
+    - ImplementationCompleted
+    realizes:
+    - GovernanceService
+    assigned_to:
+    - ArchitectureBoard
+  - name: ChangeManagementProcess
+    type: BusinessProcess
+    description: Monitor architecture, evaluate change requests, initiate new ADM
+      cycles
+    triggered_by:
+    - ImplementationCompleted
+    realizes:
+    - GovernanceService
+    assigned_to:
+    - ArchitectureBoard
+  - name: PreliminaryCompleted
+    type: BusinessEvent
+    description: Preliminary phase deliverables approved
+    triggers: []
+  - name: GateReviewRequested
+    type: BusinessEvent
+    description: An ADM agent requests Architecture Board review
+    triggers: []
+  - name: ChangeRequestReceived
+    type: BusinessEvent
+    description: External change request submitted to PhaseH
+    triggers:
+    - ChangeManagementProcess
+  - name: ArchitectureService
+    type: BusinessService
+    description: Develops enterprise architecture deliverables across all four domains
+    serves: []
+  - name: GovernanceService
+    type: BusinessService
+    description: Enforces architecture decisions, approves gates, issues contracts
+    serves: []
+  - name: RequirementsService
+    type: BusinessService
+    description: Maintains traceable requirements continuously across all ADM phases
+    serves: []
+  - name: ComplianceService
+    type: BusinessService
+    description: Evaluates implementation projects against approved architecture
+    serves: []
+  - name: ArchitectureMandate
+    type: BusinessObject
+    description: Formal organisational commitment to the EA programme
+  - name: ComplianceEvidence
+    type: BusinessObject
+    description: Documentation demonstrating implementation alignment with architecture
+  - name: StatementOfArchitectureWork
+    type: Contract
+    description: "Signed agreement defining scope, schedule, and acceptance criteria\
+      \ \u2014 Phase A gate"
+  - name: ArchitectureContractAgreement
+    type: Contract
+    description: "Agreement between development teams and architecture on deliverables\
+      \ \u2014 Phase G"
 - name: Application
   elements:
   - name: PreliminaryPhaseAgent
@@ -228,6 +521,46 @@ layers:
     - RequirementsTraceability
     - ImpactAssessment
     - RequirementsVersioning
+  - name: ADMEventBus
+    type: ApplicationInterface
+    description: Event-driven interface for phase-gate notifications between agents
+    protocol: Event
+    serves:
+    - PhaseGateTriggerService
+  - name: ArchitectureRepositoryInterface
+    type: ApplicationInterface
+    description: Read/write interface to the Architecture Repository data store
+    protocol: REST
+    serves:
+    - ModelQueryService
+  - name: PhaseGateTriggerService
+    type: ApplicationService
+    description: Manages phase-gate event routing and Architecture Board notification
+    serves:
+    - ImplementationGovernanceProcess
+    - ChangeManagementProcess
+  - name: ModelQueryService
+    type: ApplicationService
+    description: Read-only query service for Architecture Repository content
+    serves:
+    - BusinessArchitectureProcess
+    - DataArchitectureProcess
+    - ApplicationArchitectureProcess
+    - TechnologyArchitectureProcess
+  - name: RequirementsTracingService
+    type: ApplicationService
+    description: Links requirements to architecture decisions and business drivers
+    serves:
+    - RequirementsService
+    realized_by:
+    - RequirementsManagementAgent
+  - name: ComplianceAssessmentService
+    type: ApplicationService
+    description: Evaluates implementation artefacts against approved architecture
+    serves:
+    - ComplianceService
+    realized_by:
+    - PhaseGAgent
   - name: RequestForArchitectureWork
     type: DataObject
     description: Formal request triggering a new ADM cycle (from sponsor)
@@ -306,8 +639,45 @@ layers:
   - name: ImplementationStatus
     type: DataObject
     description: Progress reports from implementation projects
-- name: Implementation
+- name: Technology
   elements:
+  - name: ArchitectureRepositoryNode
+    type: Node
+    description: Centralised server hosting all versioned architecture deliverables
+    hosts:
+    - VersionControlService
+    - RepositoryDatabase
+  - name: ADMWorkstation
+    type: Node
+    description: Workstation used by architects to author and review deliverables
+    hosts:
+    - ADMToolSuite
+  - name: VersionControlService
+    type: SystemSoftware
+    description: Git-based version control for all architecture artefacts
+    part_of: ArchitectureRepositoryNode
+    serves:
+    - RequirementsManagementAgent
+    - PhaseDAgent
+  - name: RepositoryDatabase
+    type: SystemSoftware
+    description: Structured database indexing architecture repository content
+    part_of: ArchitectureRepositoryNode
+  - name: ADMToolSuite
+    type: SystemSoftware
+    description: Modelling and documentation tool suite (Archi, Confluence, Word)
+    part_of: ADMWorkstation
+    serves:
+    - PreliminaryPhaseAgent
+    - PhaseAAgent
+  - name: RepositoryHTTPS
+    type: TechnologyInterface
+    description: HTTPS interface to Architecture Repository for read/write access
+    protocol: HTTPS
+    port: 443
+    serves:
+    - ModelQueryService
+    part_of: ArchitectureRepositoryNode
   - name: ArchitectureDefinitionDocument
     type: Deliverable
     description: Formal deliverable covering all architecture domains
@@ -332,41 +702,161 @@ layers:
   - name: ArchitectureRoadmapFinal
     type: WorkPackage
     description: Prioritised and approved implementation roadmap
+- name: Implementation
+  elements:
+  - name: ArchitectureRoadmapFinalPackage
+    type: WorkPackage
+    description: Prioritised and approved implementation roadmap work package
+    realizes:
+    - ImplementationMigrationPlanDeliverable
+  - name: ArchitectureDefinitionDocumentDeliverable
+    type: Deliverable
+    description: "Formal deliverable covering all four architecture domains \u2014\
+      \ Phase D output"
+  - name: ImplementationMigrationPlanDeliverable
+    type: Deliverable
+    description: "Formal plan for executing the architecture transition \u2014 Phase\
+      \ F output"
+  - name: ArchitectureContractDeliverable
+    type: Deliverable
+    description: "Governance agreement between sponsor and architects \u2014 Phase\
+      \ G output"
+  - name: StatementOfArchitectureWorkDeliverable
+    type: Deliverable
+    description: "Scope and acceptance criteria \u2014 signed off at Phase A gate"
+  - name: BaselineArchitecturePlateau
+    type: Plateau
+    description: Approved current-state architecture across all four domains
+    realized_by:
+    - EnterpriseArchitectureCapability
+  - name: TransitionArchitecturePlateau
+    type: Plateau
+    description: "Intermediate stable architecture state \u2014 one or more transition\
+      \ points"
+    realized_by:
+    - EnterpriseArchitectureCapability
+  - name: TargetArchitecturePlateau
+    type: Plateau
+    description: "Desired future-state architecture \u2014 fully aligned with business\
+      \ strategy"
+    realized_by:
+    - EnterpriseArchitectureCapability
+  - name: BusinessArchitectureGap
+    type: Gap
+    description: Delta between baseline and target Business Architecture (Phase B)
+    from_plateau: BaselineArchitecturePlateau
+    to_plateau: TargetArchitecturePlateau
+  - name: DataArchitectureGap
+    type: Gap
+    description: Delta between baseline and target Data Architecture (Phase C1)
+    from_plateau: BaselineArchitecturePlateau
+    to_plateau: TargetArchitecturePlateau
+  - name: ApplicationArchitectureGap
+    type: Gap
+    description: Delta between baseline and target Application Architecture (Phase
+      C2)
+    from_plateau: BaselineArchitecturePlateau
+    to_plateau: TargetArchitecturePlateau
+  - name: TechnologyArchitectureGap
+    type: Gap
+    description: Delta between baseline and target Technology Architecture (Phase
+      D)
+    from_plateau: BaselineArchitecturePlateau
+    to_plateau: TargetArchitecturePlateau
 relationships:
+- from: EnterpriseArchitectureCapability
+  to: TG1
+  type: Realization
+- from: ArchitectureGovernanceCapability
+  to: TG2
+  type: Realization
+- from: RequirementsManagementCapability
+  to: TG3
+  type: Realization
+- from: TD1
+  to: TG1
+  type: Influence
+  influence: +
+- from: TD2
+  to: TG2
+  type: Influence
+  influence: +
+- from: TD3
+  to: TG2
+  type: Influence
+  influence: +
+- from: PreliminaryPhaseAgent
+  to: ArchitectureService
+  type: Realization
+- from: PhaseAAgent
+  to: ArchitectureService
+  type: Realization
+- from: PhaseBAgent
+  to: ArchitectureService
+  type: Realization
+- from: PhaseC1Agent
+  to: ArchitectureService
+  type: Realization
+- from: PhaseC2Agent
+  to: ArchitectureService
+  type: Realization
+- from: PhaseDAgent
+  to: ArchitectureService
+  type: Realization
+- from: PhaseEAgent
+  to: ArchitectureService
+  type: Realization
+- from: PhaseFAgent
+  to: ArchitectureService
+  type: Realization
+- from: PhaseGAgent
+  to: ComplianceService
+  type: Realization
+- from: PhaseHAgent
+  to: GovernanceService
+  type: Realization
+- from: RequirementsManagementAgent
+  to: RequirementsService
+  type: Realization
+- from: PhaseAAgent
+  to: StatementOfArchitectureWork
+  type: Realization
+- from: PhaseGAgent
+  to: ArchitectureContractAgreement
+  type: Realization
+- from: VersionControlService
+  to: RequirementsManagementAgent
+  type: Serving
+- from: ADMToolSuite
+  to: PreliminaryPhaseAgent
+  type: Serving
 - from: PreliminaryPhaseAgent
   to: PhaseAAgent
   type: Serving
-  forbidden: false
 - from: PreliminaryPhaseAgent
   to: OrganisationalContext
   type: Access
   access: read
-  forbidden: false
 - from: PreliminaryPhaseAgent
   to: ExistingFrameworks
   type: Access
   access: read
-  forbidden: false
 - from: PreliminaryPhaseAgent
   to: BusinessStrategy
   type: Access
   access: read
-  forbidden: false
 - from: PreliminaryPhaseAgent
   to: TailoredArchitectureFramework
   type: Access
   access: write
-  forbidden: false
 - from: PreliminaryPhaseAgent
   to: ArchitecturePrinciples
   type: Access
   access: write
-  forbidden: false
 - from: PreliminaryPhaseAgent
   to: ArchitectureRepository
   type: Access
   access: write
-  forbidden: false
 - from: PreliminaryPhaseAgent
   to: PreliminaryCompleted
   type: Triggering
@@ -377,41 +867,33 @@ relationships:
 - from: PhaseAAgent
   to: PhaseBAgent
   type: Serving
-  forbidden: false
 - from: PhaseAAgent
   to: RequirementsManagementAgent
   type: Serving
-  forbidden: false
 - from: PhaseAAgent
   to: RequestForArchitectureWork
   type: Access
   access: read
-  forbidden: false
 - from: PhaseAAgent
   to: ArchitecturePrinciples
   type: Access
   access: read
-  forbidden: false
 - from: PhaseAAgent
   to: BusinessStrategy
   type: Access
   access: read
-  forbidden: false
 - from: PhaseAAgent
   to: ArchitectureRepository
   type: Access
   access: read
-  forbidden: false
 - from: PhaseAAgent
   to: ArchitectureVision
   type: Access
   access: write
-  forbidden: false
 - from: PhaseAAgent
   to: StatementOfArchitectureWork
   type: Access
   access: write
-  forbidden: false
 - from: PhaseAAgent
   to: ArchitectureVisionApproved
   type: Triggering
@@ -425,50 +907,40 @@ relationships:
 - from: PhaseBAgent
   to: PhaseC1Agent
   type: Serving
-  forbidden: false
 - from: PhaseBAgent
   to: PhaseC2Agent
   type: Serving
-  forbidden: false
 - from: PhaseBAgent
   to: RequirementsManagementAgent
   type: Serving
-  forbidden: false
 - from: PhaseBAgent
   to: ArchitectureVision
   type: Access
   access: read
-  forbidden: false
 - from: PhaseBAgent
   to: ArchitecturePrinciples
   type: Access
   access: read
-  forbidden: false
 - from: PhaseBAgent
   to: BusinessStrategy
   type: Access
   access: read
-  forbidden: false
 - from: PhaseBAgent
   to: ArchitectureRepository
   type: Access
   access: read
-  forbidden: false
 - from: PhaseBAgent
   to: BusinessArchitectureDocument
   type: Access
   access: write
-  forbidden: false
 - from: PhaseBAgent
   to: ArchitectureRequirementsSpec
   type: Access
   access: write
-  forbidden: false
 - from: PhaseBAgent
   to: GapAnalysis
   type: Access
   access: write
-  forbidden: false
 - from: PhaseBAgent
   to: BusinessArchitectureApproved
   type: Triggering
@@ -482,45 +954,36 @@ relationships:
 - from: PhaseC1Agent
   to: PhaseC2Agent
   type: Serving
-  forbidden: false
 - from: PhaseC1Agent
   to: PhaseDAgent
   type: Serving
-  forbidden: false
 - from: PhaseC1Agent
   to: RequirementsManagementAgent
   type: Serving
-  forbidden: false
 - from: PhaseC1Agent
   to: ArchitectureVision
   type: Access
   access: read
-  forbidden: false
 - from: PhaseC1Agent
   to: BusinessArchitectureDocument
   type: Access
   access: read
-  forbidden: false
 - from: PhaseC1Agent
   to: ArchitectureRequirementsSpec
   type: Access
   access: read
-  forbidden: false
 - from: PhaseC1Agent
   to: ArchitectureRepository
   type: Access
   access: read
-  forbidden: false
 - from: PhaseC1Agent
   to: DataArchitectureDocument
   type: Access
   access: write
-  forbidden: false
 - from: PhaseC1Agent
   to: GapAnalysis
   type: Access
   access: write
-  forbidden: false
 - from: PhaseC1Agent
   to: DataArchitectureApproved
   type: Triggering
@@ -534,46 +997,37 @@ relationships:
 - from: PhaseC2Agent
   to: PhaseDAgent
   type: Serving
-  forbidden: false
 - from: PhaseC2Agent
   to: RequirementsManagementAgent
   type: Serving
-  forbidden: false
 - from: PhaseC2Agent
   to: ArchitectureVision
   type: Access
   access: read
-  forbidden: false
 - from: PhaseC2Agent
   to: BusinessArchitectureDocument
   type: Access
   access: read
-  forbidden: false
 - from: PhaseC2Agent
   to: DataArchitectureDocument
   type: Access
   access: read
-  forbidden: false
 - from: PhaseC2Agent
   to: ArchitectureRequirementsSpec
   type: Access
   access: read
-  forbidden: false
 - from: PhaseC2Agent
   to: ArchitectureRepository
   type: Access
   access: read
-  forbidden: false
 - from: PhaseC2Agent
   to: ApplicationArchitectureDocument
   type: Access
   access: write
-  forbidden: false
 - from: PhaseC2Agent
   to: GapAnalysis
   type: Access
   access: write
-  forbidden: false
 - from: PhaseC2Agent
   to: ApplicationArchitectureApproved
   type: Triggering
@@ -587,56 +1041,45 @@ relationships:
 - from: PhaseDAgent
   to: PhaseEAgent
   type: Serving
-  forbidden: false
 - from: PhaseDAgent
   to: RequirementsManagementAgent
   type: Serving
-  forbidden: false
 - from: PhaseDAgent
   to: ArchitectureVision
   type: Access
   access: read
-  forbidden: false
 - from: PhaseDAgent
   to: BusinessArchitectureDocument
   type: Access
   access: read
-  forbidden: false
 - from: PhaseDAgent
   to: DataArchitectureDocument
   type: Access
   access: read
-  forbidden: false
 - from: PhaseDAgent
   to: ApplicationArchitectureDocument
   type: Access
   access: read
-  forbidden: false
 - from: PhaseDAgent
   to: ArchitectureRequirementsSpec
   type: Access
   access: read
-  forbidden: false
 - from: PhaseDAgent
   to: ArchitectureRepository
   type: Access
   access: read
-  forbidden: false
 - from: PhaseDAgent
   to: TechnologyArchitectureDocument
   type: Access
   access: write
-  forbidden: false
 - from: PhaseDAgent
   to: ArchitectureDefinitionDocument
   type: Access
   access: write
-  forbidden: false
 - from: PhaseDAgent
   to: GapAnalysis
   type: Access
   access: write
-  forbidden: false
 - from: PhaseDAgent
   to: TechnologyArchitectureApproved
   type: Triggering
@@ -653,46 +1096,37 @@ relationships:
 - from: PhaseEAgent
   to: PhaseFAgent
   type: Serving
-  forbidden: false
 - from: PhaseEAgent
   to: RequirementsManagementAgent
   type: Serving
-  forbidden: false
 - from: PhaseEAgent
   to: ArchitectureDefinitionDocument
   type: Access
   access: read
-  forbidden: false
 - from: PhaseEAgent
   to: GapAnalysis
   type: Access
   access: read
-  forbidden: false
 - from: PhaseEAgent
   to: ArchitectureRequirementsSpec
   type: Access
   access: read
-  forbidden: false
 - from: PhaseEAgent
   to: ArchitectureRepository
   type: Access
   access: read
-  forbidden: false
 - from: PhaseEAgent
   to: ArchitectureRoadmap
   type: Access
   access: write
-  forbidden: false
 - from: PhaseEAgent
   to: TransitionArchitecture
   type: Access
   access: write
-  forbidden: false
 - from: PhaseEAgent
   to: ImplementationFactorAssessment
   type: Access
   access: write
-  forbidden: false
 - from: PhaseEAgent
   to: OpportunitiesApproved
   type: Triggering
@@ -706,41 +1140,33 @@ relationships:
 - from: PhaseFAgent
   to: PhaseGAgent
   type: Serving
-  forbidden: false
 - from: PhaseFAgent
   to: RequirementsManagementAgent
   type: Serving
-  forbidden: false
 - from: PhaseFAgent
   to: ArchitectureRoadmap
   type: Access
   access: read
-  forbidden: false
 - from: PhaseFAgent
   to: TransitionArchitecture
   type: Access
   access: read
-  forbidden: false
 - from: PhaseFAgent
   to: ImplementationFactorAssessment
   type: Access
   access: read
-  forbidden: false
 - from: PhaseFAgent
   to: ArchitectureRepository
   type: Access
   access: read
-  forbidden: false
 - from: PhaseFAgent
   to: ArchitectureRoadmap
   type: Access
   access: write
-  forbidden: false
 - from: PhaseFAgent
   to: ImplementationMigrationPlan
   type: Access
   access: write
-  forbidden: false
 - from: PhaseFAgent
   to: MigrationPlanApproved
   type: Triggering
@@ -754,41 +1180,33 @@ relationships:
 - from: PhaseGAgent
   to: PhaseHAgent
   type: Serving
-  forbidden: false
 - from: PhaseGAgent
   to: RequirementsManagementAgent
   type: Serving
-  forbidden: false
 - from: PhaseGAgent
   to: ImplementationMigrationPlan
   type: Access
   access: read
-  forbidden: false
 - from: PhaseGAgent
   to: ArchitectureContract
   type: Access
   access: read
-  forbidden: false
 - from: PhaseGAgent
   to: ImplementationStatus
   type: Access
   access: read
-  forbidden: false
 - from: PhaseGAgent
   to: ArchitectureRepository
   type: Access
   access: read
-  forbidden: false
 - from: PhaseGAgent
   to: ArchitectureComplianceAssessment
   type: Access
   access: write
-  forbidden: false
 - from: PhaseGAgent
   to: ArchitectureContract
   type: Access
   access: write
-  forbidden: false
 - from: PhaseGAgent
   to: ImplementationCompleted
   type: Triggering
@@ -802,41 +1220,33 @@ relationships:
 - from: PhaseHAgent
   to: PreliminaryPhaseAgent
   type: Serving
-  forbidden: false
 - from: PhaseHAgent
   to: RequirementsManagementAgent
   type: Serving
-  forbidden: false
 - from: PhaseHAgent
   to: ArchitectureBaseline
   type: Access
   access: read
-  forbidden: false
 - from: PhaseHAgent
   to: ChangeRequest
   type: Access
   access: read
-  forbidden: false
 - from: PhaseHAgent
   to: ArchitectureContract
   type: Access
   access: read
-  forbidden: false
 - from: PhaseHAgent
   to: ArchitectureRepository
   type: Access
   access: read
-  forbidden: false
 - from: PhaseHAgent
   to: ChangeRequestAssessment
   type: Access
   access: write
-  forbidden: false
 - from: PhaseHAgent
   to: RequestForArchitectureWork
   type: Access
   access: write
-  forbidden: false
 - from: PhaseHAgent
   to: ArchitectureDefinitionDocument
   type: Access
@@ -855,59 +1265,46 @@ relationships:
 - from: RequirementsManagementAgent
   to: PhaseAAgent
   type: Serving
-  forbidden: false
 - from: RequirementsManagementAgent
   to: PhaseBAgent
   type: Serving
-  forbidden: false
 - from: RequirementsManagementAgent
   to: PhaseC1Agent
   type: Serving
-  forbidden: false
 - from: RequirementsManagementAgent
   to: PhaseC2Agent
   type: Serving
-  forbidden: false
 - from: RequirementsManagementAgent
   to: PhaseDAgent
   type: Serving
-  forbidden: false
 - from: RequirementsManagementAgent
   to: PhaseEAgent
   type: Serving
-  forbidden: false
 - from: RequirementsManagementAgent
   to: PhaseFAgent
   type: Serving
-  forbidden: false
 - from: RequirementsManagementAgent
   to: PhaseGAgent
   type: Serving
-  forbidden: false
 - from: RequirementsManagementAgent
   to: PhaseHAgent
   type: Serving
-  forbidden: false
 - from: RequirementsManagementAgent
   to: ArchitectureRequirementsSpec
   type: Access
   access: read
-  forbidden: false
 - from: RequirementsManagementAgent
   to: BusinessStrategy
   type: Access
   access: read
-  forbidden: false
 - from: RequirementsManagementAgent
   to: ArchitectureRepository
   type: Access
   access: read
-  forbidden: false
 - from: RequirementsManagementAgent
   to: ArchitectureRequirementsSpec
   type: Access
   access: write
-  forbidden: false
 - from: RequirementsManagementAgent
   to: ArchitectureContract
   type: Access
@@ -978,6 +1375,198 @@ relationships:
 - from: Stakeholder
   to: PhaseAAgent
   type: Assignment
+- from: EnterpriseArchitecturePractice
+  to: ChiefArchitect
+  type: Assignment
+- from: EnterpriseArchitecturePractice
+  to: BusinessArchitect
+  type: Assignment
+- from: EnterpriseArchitecturePractice
+  to: DataArchitect
+  type: Assignment
+- from: EnterpriseArchitecturePractice
+  to: ApplicationArchitect
+  type: Assignment
+- from: EnterpriseArchitecturePractice
+  to: TechnologyArchitect
+  type: Assignment
+- from: EnterpriseArchitecturePractice
+  to: SolutionArchitect
+  type: Assignment
+- from: SponsorOrganisationActor
+  to: Stakeholder
+  type: Assignment
+- from: PreliminaryProcess
+  to: ArchitectureService
+  type: Realization
+- from: PreliminaryProcess
+  to: ArchitectureVisionApproved
+  type: Triggering
+- from: ChiefArchitect
+  to: PreliminaryProcess
+  type: Assignment
+- from: ArchitectureVisionProcess
+  to: ArchitectureService
+  type: Realization
+- from: ArchitectureVisionProcess
+  to: ArchitectureVisionApproved
+  type: Triggering
+- from: ChiefArchitect
+  to: ArchitectureVisionProcess
+  type: Assignment
+- from: Stakeholder
+  to: ArchitectureVisionProcess
+  type: Assignment
+- from: BusinessArchitectureProcess
+  to: ArchitectureService
+  type: Realization
+- from: BusinessArchitectureProcess
+  to: BusinessArchitectureApproved
+  type: Triggering
+- from: BusinessArchitect
+  to: BusinessArchitectureProcess
+  type: Assignment
+- from: DataArchitectureProcess
+  to: ArchitectureService
+  type: Realization
+- from: DataArchitectureProcess
+  to: DataArchitectureApproved
+  type: Triggering
+- from: DataArchitect
+  to: DataArchitectureProcess
+  type: Assignment
+- from: ApplicationArchitectureProcess
+  to: ArchitectureService
+  type: Realization
+- from: ApplicationArchitectureProcess
+  to: ApplicationArchitectureApproved
+  type: Triggering
+- from: ApplicationArchitect
+  to: ApplicationArchitectureProcess
+  type: Assignment
+- from: TechnologyArchitectureProcess
+  to: ArchitectureService
+  type: Realization
+- from: TechnologyArchitectureProcess
+  to: TechnologyArchitectureApproved
+  type: Triggering
+- from: TechnologyArchitect
+  to: TechnologyArchitectureProcess
+  type: Assignment
+- from: ImplementationGovernanceProcess
+  to: GovernanceService
+  type: Realization
+- from: ImplementationGovernanceProcess
+  to: ImplementationCompleted
+  type: Triggering
+- from: ArchitectureBoard
+  to: ImplementationGovernanceProcess
+  type: Assignment
+- from: ChangeManagementProcess
+  to: GovernanceService
+  type: Realization
+- from: ArchitectureBoard
+  to: ChangeManagementProcess
+  type: Assignment
+- from: PhaseGateTriggerService
+  to: ImplementationGovernanceProcess
+  type: Serving
+- from: PhaseGateTriggerService
+  to: ChangeManagementProcess
+  type: Serving
+- from: ModelQueryService
+  to: BusinessArchitectureProcess
+  type: Serving
+- from: ModelQueryService
+  to: DataArchitectureProcess
+  type: Serving
+- from: ModelQueryService
+  to: ApplicationArchitectureProcess
+  type: Serving
+- from: ModelQueryService
+  to: TechnologyArchitectureProcess
+  type: Serving
+- from: RequirementsTracingService
+  to: RequirementsService
+  type: Serving
+- from: RequirementsManagementAgent
+  to: RequirementsTracingService
+  type: Realization
+- from: ComplianceAssessmentService
+  to: ComplianceService
+  type: Serving
+- from: PhaseGAgent
+  to: ComplianceAssessmentService
+  type: Realization
+- from: ADMEventBus
+  to: PhaseGateTriggerService
+  type: Serving
+- from: ArchitectureRepositoryInterface
+  to: ModelQueryService
+  type: Serving
+- from: ArchitectureRepositoryNode
+  to: VersionControlService
+  type: Composition
+- from: ArchitectureRepositoryNode
+  to: RepositoryDatabase
+  type: Composition
+- from: ADMWorkstation
+  to: ADMToolSuite
+  type: Composition
+- from: ArchitectureRepositoryNode
+  to: VersionControlService
+  type: Composition
+- from: VersionControlService
+  to: RequirementsManagementAgent
+  type: Serving
+- from: VersionControlService
+  to: PhaseDAgent
+  type: Serving
+- from: ArchitectureRepositoryNode
+  to: RepositoryDatabase
+  type: Composition
+- from: ADMWorkstation
+  to: ADMToolSuite
+  type: Composition
+- from: ADMToolSuite
+  to: PreliminaryPhaseAgent
+  type: Serving
+- from: ADMToolSuite
+  to: PhaseAAgent
+  type: Serving
+- from: ArchitectureRepositoryNode
+  to: RepositoryHTTPS
+  type: Composition
+- from: RepositoryHTTPS
+  to: ModelQueryService
+  type: Serving
+- from: EnterpriseArchitectureCapability
+  to: TG1
+  type: Realization
+- from: ArchitectureGovernanceCapability
+  to: TG2
+  type: Realization
+- from: RequirementsManagementCapability
+  to: TG3
+  type: Realization
+- from: GapAnalysisCapability
+  to: TG1
+  type: Realization
+- from: ADMLifecycle
+  to: EnterpriseArchitectureCapability
+  type: Realization
+- from: ADMLifecycle
+  to: ArchitectureGovernanceCapability
+  type: Realization
+- from: IterativeADM
+  to: EnterpriseArchitectureCapability
+  type: Realization
+- from: ContinuousGovernance
+  to: ArchitectureGovernanceCapability
+  type: Realization
+- from: ArchitectureRoadmapFinalPackage
+  to: ImplementationMigrationPlanDeliverable
+  type: Realization
 events:
 - PreliminaryCompleted
 - ArchitectureVisionApproved

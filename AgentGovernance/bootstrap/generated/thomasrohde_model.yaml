@@ -1,10 +1,103 @@
 meta:
-  name: harness-bootstrap-model
-  version: '1.0'
-  description: Self-describing ArchiMate model of the system
+  name: bootstrap-model
+  version: '2.0'
+  archimate: '3.2'
+  description: Self-describing ArchiMate model
   generated_by: ModelBootstrapper
-  note: "Generated from components \u2014 do not edit manually"
+  note: "Generated \u2014 do not edit manually"
 motivation:
+  stakeholders:
+  - name: EnterpriseArchitectUser
+    description: Primary human using the toolset to model and govern architecture
+    concerns:
+    - Model accuracy
+    - Tool interoperability
+    - AI safety
+    influences: []
+  - name: AIAgentOperator
+    description: Developer deploying AI agents against the ecosystem
+    concerns:
+    - API stability
+    - Dry-run safety
+    - Idempotency
+    influences: []
+  - name: PlatformAdministrator
+    description: Maintains archi-server, archguard corpus, workflow definitions
+    concerns:
+    - Service availability
+    - Data integrity
+    - Access control
+    influences: []
+  drivers:
+  - id: TRD1
+    name: Model automation demand
+    description: Architects need AI-driven automation that safely writes to the ArchiMate
+      model
+    category: external
+    associated_to:
+    - EnterpriseArchitectUser
+    - AIAgentOperator
+  - id: TRD2
+    name: Governance corpus management
+    description: Growing guardrail corpus requires structured lifecycle management
+      beyond flat files
+    category: internal
+    associated_to:
+    - PlatformAdministrator
+  - id: TRD3
+    name: Human-in-the-loop requirement
+    description: AI agent gate reviews must involve human approval, not automated
+      bypass
+    category: external
+    associated_to:
+    - AIAgentOperator
+  assessments:
+  - id: TRA1
+    name: Direct model write risk
+    description: AI agent bypasses archi-server and corrupts the .archimate file directly
+    type: risk
+    associated_to:
+    - TRD1
+  - id: TRA2
+    name: Gate bypass risk
+    description: checkpointflow await_event steps auto-approved without human review
+    type: risk
+    associated_to:
+    - TRD3
+  - id: TRA3
+    name: Idempotency gap opportunity
+    description: Using idempotencyKey prevents duplicate elements from parallel agent
+      runs
+    type: opportunity
+    associated_to:
+    - TRD1
+  goals:
+  - id: TRG1
+    name: SafeModelAutomation
+    description: AI agents write to the ArchiMate model only via archi-server with
+      idempotency
+    realized_by:
+    - TR-P1
+    - TR-C1
+    - ModelWriteCapability
+  - id: TRG2
+    name: HumanInLoopGovernance
+    description: Every gate review involves a human decision via checkpointflow await_event
+    realized_by:
+    - TR-P3
+    - TR-C3
+    - WorkflowGovernanceCapability
+  - id: TRG3
+    name: EvidenceBasedQuality
+    description: Architecture review scores are grounded in cited evidence, not AI
+      impressions
+    realized_by:
+    - TR-P4
+    - TR-C4
+    - EvidenceCapability
+  outcomes: []
+  values: []
+  meanings: []
   principles:
   - id: TR-P1
     severity: must
@@ -62,9 +155,71 @@ motivation:
   - id: TR-R4
     severity: may
     text: Architecture views should be auto-laid out after element creation
+strategy:
+  resources: []
+  capabilities:
+  - name: ModelWriteCapability
+    description: Write elements and relationships to ArchiMate model safely via archi-server
+    realizes:
+    - TRG1
+    served_by: []
+  - name: GuardrailQueryCapability
+    description: Search and retrieve architectural guardrails via archguard hybrid
+      search
+    realizes:
+    - TRG1
+    served_by: []
+  - name: WorkflowGovernanceCapability
+    description: Execute governed ADM workflows with deterministic resume and gate
+      reviews
+    realizes:
+    - TRG2
+    served_by: []
+  - name: EvidenceCapability
+    description: Evaluate architecture artefacts using EAROS rubrics with cited evidence
+    realizes:
+    - TRG3
+    served_by: []
+  - name: CapabilityModelingCapability
+    description: Author, render, and version-control business capability models
+    realizes:
+    - TRG1
+    served_by: []
+  value_streams:
+  - name: ModelingCycle
+    description: AI-assisted ArchiMate modelling from intent to committed model change
+    stages:
+    - Plan
+    - DryRun
+    - ApplyBOM
+    - VerifyModel
+    - Publish
+    realizes:
+    - ModelWriteCapability
+  - name: GovernanceCycle
+    description: ADM gate review cycle from workflow trigger to human approval
+    stages:
+    - TriggerGate
+    - AwaitEvent
+    - HumanReview
+    - Approve
+    - Resume
+    realizes:
+    - WorkflowGovernanceCapability
+  courses_of_action: []
 layers:
 - name: Business
   elements:
+  - name: EnterpriseArchitectActor
+    type: BusinessActor
+    description: Human EA author using archi-server, EAROS, and the CLI tools
+    plays:
+    - EnterpriseArchitect
+  - name: AIAgentActor
+    type: BusinessActor
+    description: Autonomous AI agent (Claude, Copilot) driving modelling tasks
+    plays:
+    - AIAgent
   - name: EnterpriseArchitect
     type: BusinessRole
     description: Primary human user of the toolset. Authors capability models, conducts
@@ -102,6 +257,85 @@ layers:
     - ArchiServer
     - Archguard
     - CheckpointFlow
+  - name: ModelChangeProcess
+    type: BusinessProcess
+    description: Plan, dry-run, and apply a BOM batch change to the ArchiMate model
+    triggers:
+    - ModelChanged
+    realizes:
+    - ModelWriteService
+    assigned_to:
+    - EnterpriseArchitect
+    - AIAgent
+  - name: GateReviewProcess
+    type: BusinessProcess
+    description: Human reviews and approves a checkpointflow await_event gate
+    triggered_by:
+    - GateReviewRequested
+    realizes:
+    - WorkflowService
+    assigned_to:
+    - ArchitectureBoard
+  - name: EvaluationProcess
+    type: BusinessProcess
+    description: EAROS rubric-based evaluation of an architecture artefact with evidence
+    realizes:
+    - EvaluationService
+    assigned_to:
+    - EnterpriseArchitect
+  - name: PublishProcess
+    type: BusinessProcess
+    description: Publish approved ADM deliverables to Confluence after gate sign-off
+    triggered_by:
+    - WorkflowCompleted
+    realizes:
+    - PublishService
+    assigned_to:
+    - AIAgent
+  - name: ModelChanged
+    type: BusinessEvent
+    description: A BOM operation committed a change to the ArchiMate model
+    triggers: []
+  - name: GateReviewRequested
+    type: BusinessEvent
+    description: checkpointflow await_event triggered for human review
+    triggers:
+    - GateReviewProcess
+  - name: WorkflowCompleted
+    type: BusinessEvent
+    description: checkpointflow workflow reached its terminal state
+    triggers:
+    - PublishProcess
+  - name: ReviewCompleted
+    type: BusinessEvent
+    description: EAROS evaluation finished and record persisted
+    triggers: []
+  - name: ArtifactPublished
+    type: BusinessEvent
+    description: Deliverable published to Confluence via confpub-cli
+    triggers: []
+  - name: ModelWriteService
+    type: BusinessService
+    description: Safe, idempotent write access to the ArchiMate model via archi-server
+    serves: []
+  - name: WorkflowService
+    type: BusinessService
+    description: Deterministic, resumable ADM workflow execution with gate reviews
+    serves: []
+  - name: EvaluationService
+    type: BusinessService
+    description: Evidence-based architecture quality assessment using EAROS
+    serves: []
+  - name: PublishService
+    type: BusinessService
+    description: Automated publishing of architecture deliverables to Confluence
+    serves: []
+  - name: ChangeApproval
+    type: BusinessObject
+    description: Human decision record for a gate review or BOM change
+  - name: EvidenceBundle
+    type: BusinessObject
+    description: Cited excerpt + rubric dimension + score from an EAROS evaluation
 - name: Application
   elements:
   - name: ArchiServer
@@ -254,6 +488,108 @@ layers:
     - ParallelExecution
     - EvaluatorOptimizer
     - OrchestratorWorkers
+  - name: ArchiServerRESTInterface
+    type: ApplicationInterface
+    description: HTTP REST API of archi-server at localhost:8765
+    protocol: REST
+    serves:
+    - ModelWriteService
+    part_of: ArchiServer
+  - name: ArchiMCPInterface
+    type: ApplicationInterface
+    description: MCP protocol interface exposing 28 tools to AI agents
+    protocol: MCP
+    serves:
+    - ModelWriteService
+    part_of: ArchiMCPServer
+  - name: ArchicliInterface
+    type: ApplicationInterface
+    description: TypeScript CLI for BOM operations and model stats
+    protocol: CLI
+    serves:
+    - ModelWriteService
+    part_of: ArchicliTool
+  - name: ArchguardCLI
+    type: ApplicationInterface
+    description: Python CLI for guardrail management and search
+    protocol: CLI
+    serves:
+    - GuardrailQueryCapability
+    part_of: Archguard
+  - name: CheckpointflowCLI
+    type: ApplicationInterface
+    description: CLI to start, resume, and inspect workflow executions
+    protocol: CLI
+    serves:
+    - WorkflowService
+    part_of: CheckpointFlow
+  - name: StrandsCLIInterface
+    type: ApplicationInterface
+    description: YAML-driven multi-agent orchestration CLI
+    protocol: CLI
+    serves:
+    - WorkflowService
+    part_of: StrandsCli
+  - name: BOMWorkflow
+    type: ApplicationProcess
+    description: "Plan \u2192 Dry-run \u2192 Verify \u2192 Apply BOM to ArchiMate\
+      \ model"
+    steps:
+    - plan_changes
+    - dry_run
+    - verify_result
+    - apply_bom
+    realizes:
+    - BOMApplyService
+  - name: EAROSWorkflow
+    type: ApplicationProcess
+    description: "Load rubric \u2192 Collect evidence \u2192 Score \u2192 Generate\
+      \ report"
+    steps:
+    - load_rubric
+    - collect_evidence
+    - score_dimensions
+    - calibrate
+    - generate_report
+    realizes:
+    - RubricEvaluationService
+  - name: ModelQueryService
+    type: ApplicationService
+    description: Read-only query of ArchiMate model elements, relations, and views
+    serves:
+    - ModelChangeProcess
+    realized_by:
+    - ArchiServer
+    - ArchiMCPServer
+  - name: BOMApplyService
+    type: ApplicationService
+    description: Idempotent batch BOM application to the ArchiMate model
+    serves:
+    - ModelChangeProcess
+    realized_by:
+    - ArchiServer
+  - name: GuardrailSearchService
+    type: ApplicationService
+    description: Hybrid BM25 + semantic search over the guardrail corpus
+    serves:
+    - ModelChangeProcess
+    - EvaluationProcess
+    realized_by:
+    - Archguard
+  - name: WorkflowExecutionService
+    type: ApplicationService
+    description: Deterministic workflow execution with checkpointed state
+    serves:
+    - GateReviewProcess
+    realized_by:
+    - CheckpointFlow
+  - name: RubricEvaluationService
+    type: ApplicationService
+    description: EAROS evidence-based scoring of architecture artefacts
+    serves:
+    - EvaluationProcess
+    realized_by:
+    - EAROS
   - name: ArchiMateModel
     type: DataObject
     description: The live .archimate model file managed by Archi. Single source of
@@ -310,53 +646,241 @@ layers:
   - name: WorkflowOutput
     type: DataObject
     description: Output artifacts produced by StrandsCli workflow execution.
+- name: Technology
+  elements:
+  - name: LocalDeveloperMachine
+    type: Node
+    description: Developer workstation running Archi, archi-server, and all Python
+      tools
+    hosts:
+    - ArchiJVM
+    - Python3Runtime
+    - SQLiteDB
+    - NodeJSRuntime
+  - name: GitRepository
+    type: Node
+    description: Remote Git repository hosting ArchiMate model, capability models,
+      and workflows
+  - name: ArchiJVM
+    type: SystemSoftware
+    description: Java Virtual Machine running Archi with jArchi plugin
+    part_of: LocalDeveloperMachine
+    serves:
+    - ArchiServer
+    - JArchiScriptingSystem
+  - name: Python3Runtime
+    type: SystemSoftware
+    description: Python 3.11+ runtime for archguard, EAROS, checkpointflow, strands-cli
+    part_of: LocalDeveloperMachine
+    serves:
+    - Archguard
+    - CheckpointFlow
+    - EAROS
+    - StrandsCli
+  - name: SQLiteDB
+    type: SystemSoftware
+    description: SQLite database backing archguard's FTS5 guardrail search index
+    part_of: LocalDeveloperMachine
+    serves:
+    - Archguard
+  - name: NodeJSRuntime
+    type: SystemSoftware
+    description: Node.js runtime for archicli TypeScript CLI
+    part_of: LocalDeveloperMachine
+    serves:
+    - ArchicliTool
+  - name: LocalhostHTTP8765
+    type: TechnologyInterface
+    description: HTTP interface serving archi-server REST API
+    protocol: HTTP
+    port: 8765
+    serves:
+    - ModelQueryService
+    - BOMApplyService
+    part_of: LocalDeveloperMachine
+  - name: GitVersionControlService
+    type: TechnologyService
+    description: Git-based version control for ArchiMate model and capability models
+    serves:
+    - EAWorkbench
+    - ECMStudio
+    realized_by:
+    - GitRepository
+  - name: LocalFileSystemService
+    type: TechnologyService
+    description: File system storage for workflow state, YAML definitions, JSONL corpus
+    serves:
+    - CheckpointFlow
+    - Archguard
+    - StrandsCli
+    realized_by:
+    - LocalDeveloperMachine
+  - name: ArchimateFile
+    type: Artifact
+    description: The .archimate model file managed by Archi
+    artifact_type: file
+  - name: GuardrailJSONL
+    type: Artifact
+    description: archguard guardrail corpus (JSONL)
+    artifact_type: json
+  - name: WorkflowStateFiles
+    type: Artifact
+    description: checkpointflow persisted state in ~/.checkpointflow/
+    artifact_type: file
+  - name: BOMJSONFile
+    type: Artifact
+    description: Bill of Materials JSON for archi-server batch
+    artifact_type: json
+  - name: EvaluationJSONFile
+    type: Artifact
+    description: EAROS evaluation record (evaluation.schema.json)
+    artifact_type: json
+  - name: CapabilityModelJSONL
+    type: Artifact
+    description: Business capability tree (JSONL, BCM format)
+    artifact_type: json
+  - name: WorkflowDefinitionYAML
+    type: Artifact
+    description: checkpointflow / strands-cli workflow YAML
+    artifact_type: yaml
+  - name: LocalLoopback
+    type: CommunicationNetwork
+    description: localhost network connecting CLI tools to archi-server
+    connects:
+    - LocalDeveloperMachine
 - name: Implementation
   elements:
+  - name: ModelingCycleWorkPackage
+    type: WorkPackage
+    description: "Plan \u2192 DryRun \u2192 Apply BOM \u2192 Verify \u2192 Publish\
+      \ cycle"
+    realizes:
+    - ArchiServerBOM
+  - name: EvaluationWorkPackage
+    type: WorkPackage
+    description: EAROS rubric evaluation cycle for an architecture artefact
+    realizes:
+    - EAROSEvaluationRecord
   - name: ArchiServerBOM
     type: Deliverable
     description: Approved BOM file for a model change batch operation
-  - name: CheckpointflowDAG
-    type: WorkPackage
-    description: Workflow YAML defining an ADM cycle or sub-process
-  - name: EAROSEvaluation
+  - name: EAROSEvaluationRecord
     type: Deliverable
-    description: Completed EAROS evaluation record for an architecture artifact
-  - name: CapabilityBaseline
-    type: Plateau
-    description: Approved baseline capability model snapshot
-  - name: CapabilityTarget
-    type: Plateau
-    description: Target capability model after transformation
+    description: Completed EAROS evaluation with evidence citations and gate verdict
   - name: PublishedDocumentSet
     type: Deliverable
-    description: Set of ADM deliverables published to Confluence
+    description: Set of ADM deliverables published to Confluence after gate approval
+  - name: ManualModelingPlateau
+    type: Plateau
+    description: "Architect manually edits the .archimate file \u2014 no automation,\
+      \ no governance"
+  - name: AssistedModelingPlateau
+    type: Plateau
+    description: AI agents write to model via archi-server with BOM and idempotency
+    realized_by:
+    - ModelWriteCapability
+  - name: GovernedModelingPlateau
+    type: Plateau
+    description: 'Full governance: archi-server writes + checkpointflow gates + EAROS
+      evaluation'
+    realized_by:
+    - ModelWriteCapability
+    - WorkflowGovernanceCapability
+    - EvidenceCapability
+  - name: AutomationGap
+    type: Gap
+    description: Delta between manual modelling and AI-assisted modelling via archi-server
+    from_plateau: ManualModelingPlateau
+    to_plateau: AssistedModelingPlateau
+  - name: GovernanceGap
+    type: Gap
+    description: Delta between AI-assisted modelling and fully governed modelling
+      with gates
+    from_plateau: AssistedModelingPlateau
+    to_plateau: GovernedModelingPlateau
 relationships:
+- from: ModelWriteCapability
+  to: TRG1
+  type: Realization
+- from: WorkflowGovernanceCapability
+  to: TRG2
+  type: Realization
+- from: EvidenceCapability
+  to: TRG3
+  type: Realization
+- from: TRD1
+  to: TRG1
+  type: Influence
+  influence: +
+- from: TRD3
+  to: TRG2
+  type: Influence
+  influence: +
+- from: ArchiServer
+  to: ModelQueryService
+  type: Realization
+- from: ArchiServer
+  to: BOMApplyService
+  type: Realization
+- from: ArchiMCPServer
+  to: ModelQueryService
+  type: Realization
+- from: Archguard
+  to: GuardrailSearchService
+  type: Realization
+- from: CheckpointFlow
+  to: WorkflowExecutionService
+  type: Realization
+- from: EAROS
+  to: RubricEvaluationService
+  type: Realization
+- from: ArchiJVM
+  to: ArchiServer
+  type: Serving
+- from: Python3Runtime
+  to: Archguard
+  type: Serving
+- from: Python3Runtime
+  to: CheckpointFlow
+  type: Serving
+- from: Python3Runtime
+  to: EAROS
+  type: Serving
+- from: NodeJSRuntime
+  to: ArchicliTool
+  type: Serving
+- from: GitVersionControlService
+  to: EAWorkbench
+  type: Serving
+- from: GitVersionControlService
+  to: ECMStudio
+  type: Serving
+- from: LocalFileSystemService
+  to: CheckpointFlow
+  type: Serving
+- from: LocalFileSystemService
+  to: Archguard
+  type: Serving
 - from: ArchiServer
   to: ArchiMateGeneratorAgent
   type: Serving
-  forbidden: false
 - from: ArchiServer
   to: JArchiScriptingSystem
   type: Serving
-  forbidden: false
 - from: ArchiServer
   to: ArchiMCPServer
   type: Serving
-  forbidden: false
 - from: ArchiServer
   to: ArchicliTool
   type: Serving
-  forbidden: false
 - from: ArchiServer
   to: ArchiMateModel
   type: Access
   access: read
-  forbidden: false
 - from: ArchiServer
   to: ArchiMateModel
   type: Access
   access: write
-  forbidden: false
 - from: ArchiServer
   to: GuardrailCorpus
   type: Access
@@ -373,17 +897,14 @@ relationships:
 - from: ArchiMCPServer
   to: AIAgent
   type: Serving
-  forbidden: false
 - from: ArchiMCPServer
   to: ArchiMateModel
   type: Access
   access: read
-  forbidden: false
 - from: ArchiMCPServer
   to: ArchiMateModel
   type: Access
   access: write
-  forbidden: false
 - from: ArchiMCPServer
   to: GuardrailCorpus
   type: Access
@@ -402,26 +923,21 @@ relationships:
 - from: ArchicliTool
   to: EnterpriseArchitect
   type: Serving
-  forbidden: false
 - from: ArchicliTool
   to: AIAgent
   type: Serving
-  forbidden: false
 - from: ArchicliTool
   to: BOMFile
   type: Access
   access: read
-  forbidden: false
 - from: ArchicliTool
   to: ArchiMateModel
   type: Access
   access: read
-  forbidden: false
 - from: ArchicliTool
   to: BOMFile
   type: Access
   access: write
-  forbidden: false
 - from: ArchicliTool
   to: GuardrailCorpus
   type: Access
@@ -430,17 +946,14 @@ relationships:
 - from: JArchiScriptingSystem
   to: EnterpriseArchitect
   type: Serving
-  forbidden: false
 - from: JArchiScriptingSystem
   to: ArchiMateModel
   type: Access
   access: read
-  forbidden: false
 - from: JArchiScriptingSystem
   to: ArchiMateModel
   type: Access
   access: write
-  forbidden: false
 - from: JArchiScriptingSystem
   to: GuardrailCorpus
   type: Access
@@ -454,25 +967,20 @@ relationships:
 - from: Archguard
   to: GroundingEngine
   type: Serving
-  forbidden: false
 - from: Archguard
   to: FeedbackProcessor
   type: Serving
-  forbidden: false
 - from: Archguard
   to: ADMPhaseAgents
   type: Serving
-  forbidden: false
 - from: Archguard
   to: GuardrailCorpus
   type: Access
   access: read
-  forbidden: false
 - from: Archguard
   to: GuardrailCorpus
   type: Access
   access: write
-  forbidden: false
 - from: Archguard
   to: ArchiMateModel
   type: Access
@@ -494,26 +1002,21 @@ relationships:
 - from: CheckpointFlow
   to: ADMPhaseAgents
   type: Serving
-  forbidden: false
 - from: CheckpointFlow
   to: EnterpriseArchitect
   type: Serving
-  forbidden: false
 - from: CheckpointFlow
   to: WorkflowDefinition
   type: Access
   access: read
-  forbidden: false
 - from: CheckpointFlow
   to: WorkflowState
   type: Access
   access: read
-  forbidden: false
 - from: CheckpointFlow
   to: WorkflowState
   type: Access
   access: write
-  forbidden: false
 - from: CheckpointFlow
   to: ArchiMateModel
   type: Access
@@ -541,30 +1044,24 @@ relationships:
 - from: EAROS
   to: PhaseGAgent
   type: Serving
-  forbidden: false
 - from: EAROS
   to: ArchitectureBoard
   type: Serving
-  forbidden: false
 - from: EAROS
   to: EnterpriseArchitect
   type: Serving
-  forbidden: false
 - from: EAROS
   to: ArchitectureRubric
   type: Access
   access: read
-  forbidden: false
 - from: EAROS
   to: ArchitectureArtifact
   type: Access
   access: read
-  forbidden: false
 - from: EAROS
   to: EvaluationRecord
   type: Access
   access: write
-  forbidden: false
 - from: EAROS
   to: ArchiMateModel
   type: Access
@@ -586,25 +1083,20 @@ relationships:
 - from: BCMCli
   to: PhaseBAgent
   type: Serving
-  forbidden: false
 - from: BCMCli
   to: EAWorkbench
   type: Serving
-  forbidden: false
 - from: BCMCli
   to: EnterpriseArchitect
   type: Serving
-  forbidden: false
 - from: BCMCli
   to: CapabilityModel
   type: Access
   access: read
-  forbidden: false
 - from: BCMCli
   to: CapabilityMap
   type: Access
   access: write
-  forbidden: false
 - from: BCMCli
   to: ArchiMateModel
   type: Access
@@ -618,21 +1110,17 @@ relationships:
 - from: ConfpubCli
   to: ADMPhaseAgents
   type: Serving
-  forbidden: false
 - from: ConfpubCli
   to: EnterpriseArchitect
   type: Serving
-  forbidden: false
 - from: ConfpubCli
   to: ArchitectureArtifact
   type: Access
   access: read
-  forbidden: false
 - from: ConfpubCli
   to: ConfluencePage
   type: Access
   access: write
-  forbidden: false
 - from: ConfpubCli
   to: ArchiMateModel
   type: Access
@@ -651,21 +1139,17 @@ relationships:
 - from: XlCli
   to: PhaseFAgent
   type: Serving
-  forbidden: false
 - from: XlCli
   to: EnterpriseArchitect
   type: Serving
-  forbidden: false
 - from: XlCli
   to: ExcelWorkbook
   type: Access
   access: read
-  forbidden: false
 - from: XlCli
   to: ExcelWorkbook
   type: Access
   access: write
-  forbidden: false
 - from: XlCli
   to: ArchiMateModel
   type: Access
@@ -679,21 +1163,17 @@ relationships:
 - from: ExcalidrawCli
   to: EnterpriseArchitect
   type: Serving
-  forbidden: false
 - from: ExcalidrawCli
   to: ADMPhaseAgents
   type: Serving
-  forbidden: false
 - from: ExcalidrawCli
   to: ExcalidrawDiagram
   type: Access
   access: read
-  forbidden: false
 - from: ExcalidrawCli
   to: ExcalidrawDiagram
   type: Access
   access: write
-  forbidden: false
 - from: ExcalidrawCli
   to: ArchiMateModel
   type: Access
@@ -707,27 +1187,22 @@ relationships:
 - from: EAWorkbench
   to: EnterpriseArchitect
   type: Serving
-  forbidden: false
 - from: EAWorkbench
   to: CapabilityModel
   type: Access
   access: read
-  forbidden: false
 - from: EAWorkbench
   to: ArchitectureDocument
   type: Access
   access: read
-  forbidden: false
 - from: EAWorkbench
   to: CapabilityModel
   type: Access
   access: write
-  forbidden: false
 - from: EAWorkbench
   to: ArchitectureDocument
   type: Access
   access: write
-  forbidden: false
 - from: EAWorkbench
   to: ArchiMateModel
   type: Access
@@ -746,17 +1221,14 @@ relationships:
 - from: ECMStudio
   to: EnterpriseArchitect
   type: Serving
-  forbidden: false
 - from: ECMStudio
   to: CapabilityModel
   type: Access
   access: read
-  forbidden: false
 - from: ECMStudio
   to: CapabilityModel
   type: Access
   access: write
-  forbidden: false
 - from: ECMStudio
   to: ArchiMateModel
   type: Access
@@ -770,21 +1242,17 @@ relationships:
 - from: StrandsCli
   to: ADMPhaseAgents
   type: Serving
-  forbidden: false
 - from: StrandsCli
   to: EnterpriseArchitect
   type: Serving
-  forbidden: false
 - from: StrandsCli
   to: WorkflowDefinition
   type: Access
   access: read
-  forbidden: false
 - from: StrandsCli
   to: WorkflowOutput
   type: Access
   access: write
-  forbidden: false
 - from: StrandsCli
   to: ArchiMateModel
   type: Access
@@ -851,6 +1319,225 @@ relationships:
 - from: PlatformTeam
   to: CheckpointFlow
   type: Assignment
+- from: EnterpriseArchitectActor
+  to: EnterpriseArchitect
+  type: Assignment
+- from: AIAgentActor
+  to: AIAgent
+  type: Assignment
+- from: ModelChangeProcess
+  to: ModelWriteService
+  type: Realization
+- from: ModelChangeProcess
+  to: ModelChanged
+  type: Triggering
+- from: EnterpriseArchitect
+  to: ModelChangeProcess
+  type: Assignment
+- from: AIAgent
+  to: ModelChangeProcess
+  type: Assignment
+- from: GateReviewProcess
+  to: WorkflowService
+  type: Realization
+- from: ArchitectureBoard
+  to: GateReviewProcess
+  type: Assignment
+- from: EvaluationProcess
+  to: EvaluationService
+  type: Realization
+- from: EnterpriseArchitect
+  to: EvaluationProcess
+  type: Assignment
+- from: PublishProcess
+  to: PublishService
+  type: Realization
+- from: AIAgent
+  to: PublishProcess
+  type: Assignment
+- from: ModelQueryService
+  to: ModelChangeProcess
+  type: Serving
+- from: ArchiServer
+  to: ModelQueryService
+  type: Realization
+- from: ArchiMCPServer
+  to: ModelQueryService
+  type: Realization
+- from: BOMApplyService
+  to: ModelChangeProcess
+  type: Serving
+- from: ArchiServer
+  to: BOMApplyService
+  type: Realization
+- from: GuardrailSearchService
+  to: ModelChangeProcess
+  type: Serving
+- from: GuardrailSearchService
+  to: EvaluationProcess
+  type: Serving
+- from: Archguard
+  to: GuardrailSearchService
+  type: Realization
+- from: WorkflowExecutionService
+  to: GateReviewProcess
+  type: Serving
+- from: CheckpointFlow
+  to: WorkflowExecutionService
+  type: Realization
+- from: RubricEvaluationService
+  to: EvaluationProcess
+  type: Serving
+- from: EAROS
+  to: RubricEvaluationService
+  type: Realization
+- from: ArchiServerRESTInterface
+  to: ModelWriteService
+  type: Serving
+- from: ArchiServer
+  to: ArchiServerRESTInterface
+  type: Composition
+- from: ArchiMCPInterface
+  to: ModelWriteService
+  type: Serving
+- from: ArchiMCPServer
+  to: ArchiMCPInterface
+  type: Composition
+- from: ArchicliInterface
+  to: ModelWriteService
+  type: Serving
+- from: ArchicliTool
+  to: ArchicliInterface
+  type: Composition
+- from: ArchguardCLI
+  to: GuardrailQueryCapability
+  type: Serving
+- from: Archguard
+  to: ArchguardCLI
+  type: Composition
+- from: CheckpointflowCLI
+  to: WorkflowService
+  type: Serving
+- from: CheckpointFlow
+  to: CheckpointflowCLI
+  type: Composition
+- from: StrandsCLIInterface
+  to: WorkflowService
+  type: Serving
+- from: StrandsCli
+  to: StrandsCLIInterface
+  type: Composition
+- from: BOMWorkflow
+  to: BOMApplyService
+  type: Realization
+- from: EAROSWorkflow
+  to: RubricEvaluationService
+  type: Realization
+- from: LocalDeveloperMachine
+  to: ArchiJVM
+  type: Composition
+- from: LocalDeveloperMachine
+  to: Python3Runtime
+  type: Composition
+- from: LocalDeveloperMachine
+  to: SQLiteDB
+  type: Composition
+- from: LocalDeveloperMachine
+  to: NodeJSRuntime
+  type: Composition
+- from: LocalDeveloperMachine
+  to: ArchiJVM
+  type: Composition
+- from: ArchiJVM
+  to: ArchiServer
+  type: Serving
+- from: ArchiJVM
+  to: JArchiScriptingSystem
+  type: Serving
+- from: LocalDeveloperMachine
+  to: Python3Runtime
+  type: Composition
+- from: Python3Runtime
+  to: Archguard
+  type: Serving
+- from: Python3Runtime
+  to: CheckpointFlow
+  type: Serving
+- from: Python3Runtime
+  to: EAROS
+  type: Serving
+- from: Python3Runtime
+  to: StrandsCli
+  type: Serving
+- from: LocalDeveloperMachine
+  to: SQLiteDB
+  type: Composition
+- from: SQLiteDB
+  to: Archguard
+  type: Serving
+- from: LocalDeveloperMachine
+  to: NodeJSRuntime
+  type: Composition
+- from: NodeJSRuntime
+  to: ArchicliTool
+  type: Serving
+- from: GitVersionControlService
+  to: EAWorkbench
+  type: Serving
+- from: GitVersionControlService
+  to: ECMStudio
+  type: Serving
+- from: GitRepository
+  to: GitVersionControlService
+  type: Realization
+- from: LocalFileSystemService
+  to: CheckpointFlow
+  type: Serving
+- from: LocalFileSystemService
+  to: Archguard
+  type: Serving
+- from: LocalFileSystemService
+  to: StrandsCli
+  type: Serving
+- from: LocalDeveloperMachine
+  to: LocalFileSystemService
+  type: Realization
+- from: LocalDeveloperMachine
+  to: LocalhostHTTP8765
+  type: Composition
+- from: LocalhostHTTP8765
+  to: ModelQueryService
+  type: Serving
+- from: LocalhostHTTP8765
+  to: BOMApplyService
+  type: Serving
+- from: ModelWriteCapability
+  to: TRG1
+  type: Realization
+- from: GuardrailQueryCapability
+  to: TRG1
+  type: Realization
+- from: WorkflowGovernanceCapability
+  to: TRG2
+  type: Realization
+- from: EvidenceCapability
+  to: TRG3
+  type: Realization
+- from: CapabilityModelingCapability
+  to: TRG1
+  type: Realization
+- from: ModelingCycle
+  to: ModelWriteCapability
+  type: Realization
+- from: GovernanceCycle
+  to: WorkflowGovernanceCapability
+  type: Realization
+- from: ModelingCycleWorkPackage
+  to: ArchiServerBOM
+  type: Realization
+- from: EvaluationWorkPackage
+  to: EAROSEvaluationRecord
+  type: Realization
 events:
 - ModelChanged
 - GuardrailUpdated

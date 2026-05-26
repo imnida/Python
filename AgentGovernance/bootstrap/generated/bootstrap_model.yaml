@@ -1,10 +1,105 @@
 meta:
-  name: harness-bootstrap-model
-  version: '1.0'
-  description: Self-describing ArchiMate model of the system
+  name: bootstrap-model
+  version: '2.0'
+  archimate: '3.2'
+  description: Self-describing ArchiMate model
   generated_by: ModelBootstrapper
-  note: "Generated from components \u2014 do not edit manually"
+  note: "Generated \u2014 do not edit manually"
 motivation:
+  stakeholders:
+  - name: ArchitectureTeam
+    description: Authors guardrails and operates the governance harness
+    concerns:
+    - Policy correctness
+    - Auditability
+    - Agent safety
+    influences: []
+  - name: AuditCommittee
+    description: Reviews AGT audit logs and compliance evidence
+    concerns:
+    - Tamper evidence
+    - Traceability
+    - Regulatory compliance
+    influences: []
+  - name: AIAgentOperator
+    description: Deploys and monitors AI agents in production
+    concerns:
+    - Agent reliability
+    - Policy transparency
+    - Fail-safe behaviour
+    influences: []
+  drivers:
+  - id: D1
+    name: AI agent proliferation
+    description: Autonomous agents operating without governance create unacceptable
+      operational risk
+    category: external
+    associated_to:
+    - ArchitectureTeam
+    - AuditCommittee
+  - id: D2
+    name: Architectural drift
+    description: ArchiMate models diverge from reality without continuous automated
+      sync
+    category: internal
+    associated_to:
+    - ArchitectureTeam
+  - id: D3
+    name: Audit gap
+    description: Manual policy enforcement leaves no tamper-evident trail for compliance
+    category: internal
+    associated_to:
+    - AuditCommittee
+  assessments:
+  - id: A1
+    name: Unauthorized write risk
+    description: An AI agent bypasses ArchiMate write controls and corrupts the model
+    type: risk
+    associated_to:
+    - D1
+  - id: A2
+    name: Guardrail bypass risk
+    description: An agent calls a forbidden tool after archguard rules are circumvented
+    type: risk
+    associated_to:
+    - D1
+  - id: A3
+    name: Audit gap risk
+    description: A violation occurs but is not recorded due to missing audit logging
+    type: risk
+    associated_to:
+    - D3
+  - id: A4
+    name: Governance automation opportunity
+    description: Boucle 0 pipeline enables deterministic policy derivation from ArchiMate
+    type: opportunity
+    associated_to:
+    - D2
+  goals:
+  - id: G1
+    name: FailSafeGovernance
+    description: Every AI agent action is governed by an active, verified policy;
+      errors deny
+    realized_by:
+    - P3
+    - GovernanceEnforcement
+  - id: G2
+    name: TraceableDecisions
+    description: Every grounding decision and policy rule is recorded and auditable
+    realized_by:
+    - P8
+    - P9
+    - AuditService
+  - id: G3
+    name: ContinuousCompliance
+    description: Guardrails are continuously refined from violation feedback without
+      human bottleneck
+    realized_by:
+    - R1
+    - FeedbackCycle
+  outcomes: []
+  values: []
+  meanings: []
   principles:
   - id: P1
     severity: must
@@ -56,7 +151,152 @@ motivation:
   - id: R3
     severity: may
     text: All grounding decisions must be traceable
+strategy:
+  resources: []
+  capabilities:
+  - name: GovernanceEnforcement
+    description: Enforce architectural constraints on AI agents at runtime via AGT
+      policy
+    realizes:
+    - G1
+    served_by: []
+  - name: GuardrailManagement
+    description: Maintain, search, and lifecycle-manage architectural guardrails in
+      archguard
+    realizes:
+    - G1
+    - G3
+    served_by: []
+  - name: PolicyDerivation
+    description: Automatically derive executable AGT policy from ArchiMate model via
+      Boucle 0
+    realizes:
+    - G1
+    - G2
+    served_by: []
+  - name: FeedbackCycle
+    description: Refine guardrails continuously from AGT violation evidence
+    realizes:
+    - G3
+    served_by: []
+  - name: AgentIdentity
+    description: Issue and verify cryptographic identities for agents (Ed25519 / ML-DSA-65)
+    realizes:
+    - G1
+    served_by: []
+  value_streams:
+  - name: GovernanceCycle
+    description: End-to-end cycle from model declaration to policy enforcement and
+      refinement
+    stages:
+    - Model
+    - Bootstrap
+    - Activate
+    - Enforce
+    - Feedback
+    realizes:
+    - GovernanceEnforcement
+    - FeedbackCycle
+  courses_of_action:
+  - name: Boucle0Strategy
+    description: Run Boucle 0 pipeline to derive policy from ArchiMate before agent
+      launch
+    realizes:
+    - PolicyDerivation
+  - name: FailClosedStrategy
+    description: 'Default-deny policy: only explicitly allowed tool calls succeed'
+    realizes:
+    - GovernanceEnforcement
 layers:
+- name: Business
+  elements:
+  - name: ArchitectureTeam
+    type: BusinessActor
+    description: Team that authors components.py, runs Boucle 0, and activates guardrails
+    plays:
+    - PolicyReviewer
+    - GuardrailAuthor
+  - name: AuditCommittee
+    type: BusinessActor
+    description: Reviews compliance evidence from AGT audit logs
+    plays:
+    - SecurityAuditor
+  - name: PolicyReviewer
+    type: BusinessRole
+    description: Reviews and approves guardrails at the Boucle 0 human gate
+    assigned_to:
+    - GroundingEngine
+  - name: GuardrailAuthor
+    type: BusinessRole
+    description: Authors motivation elements in components_*.py files
+    assigned_to:
+    - archguard
+  - name: SecurityAuditor
+    type: BusinessRole
+    description: Reads AGT audit logs and validates compliance evidence
+    assigned_to:
+    - AgentSRE
+  - name: BootstrapProcess
+    type: BusinessProcess
+    description: Runs Boucle 0 pipeline to derive AGT policy from ArchiMate model
+    triggers:
+    - PolicyActivated
+    realizes:
+    - GovernanceService
+    assigned_to:
+    - PolicyReviewer
+  - name: ViolationHandling
+    type: BusinessProcess
+    description: Reviews AGT violation alerts and decides remediation action
+    triggered_by:
+    - ViolationRaised
+    realizes:
+    - ComplianceService
+    accesses:
+    - ComplianceReport
+    assigned_to:
+    - SecurityAuditor
+  - name: GuardrailRefinement
+    type: BusinessProcess
+    description: Evaluates RefinementProposals from FeedbackProcessor and promotes
+      to active
+    realizes:
+    - GovernanceService
+    assigned_to:
+    - GuardrailAuthor
+  - name: PolicyActivated
+    type: BusinessEvent
+    description: A new AGT policy version becomes active
+    triggers:
+    - BootstrapProcess
+  - name: ViolationRaised
+    type: BusinessEvent
+    description: AGT raises an alert for a denied agent call
+    triggers:
+    - ViolationHandling
+  - name: GuardrailProposed
+    type: BusinessEvent
+    description: FeedbackProcessor proposes a guardrail refinement
+    triggers: []
+  - name: GovernanceService
+    type: BusinessService
+    description: Provides runtime enforcement of architectural constraints for AI
+      agents
+    serves: []
+  - name: ComplianceService
+    type: BusinessService
+    description: Provides evidence of policy compliance to audit stakeholders
+    serves: []
+  - name: AuditService
+    type: BusinessService
+    description: Delivers tamper-evident audit logs for all agent actions
+    serves: []
+  - name: GovernanceMandate
+    type: BusinessObject
+    description: Organisational directive requiring AI agent governance
+  - name: ComplianceReport
+    type: BusinessObject
+    description: Periodic summary of AGT violations, deny rates, and trend analysis
 - name: Application
   elements:
   - name: ArchiServer
@@ -125,6 +365,81 @@ layers:
     - StructuralInference
     - SemanticEnrichment
     - ModelPush
+  - name: archguardCLI
+    type: ApplicationInterface
+    description: Command-line interface to archguard guardrail store
+    protocol: CLI
+    serves:
+    - GuardrailQueryService
+    part_of: archguard
+  - name: ArchiServerREST
+    type: ApplicationInterface
+    description: HTTP REST API exposing the ArchiMate model at localhost:8765
+    protocol: REST
+    serves:
+    - ModelQueryService
+    part_of: ArchiServer
+  - name: AGTPolicyLoader
+    type: ApplicationInterface
+    description: YAML file interface for loading policy into AGT
+    protocol: YAML
+    serves:
+    - PolicyEvaluationService
+    part_of: AGT
+  - name: FeedbackWebhook
+    type: ApplicationInterface
+    description: Event-driven interface for receiving AGT violation events
+    protocol: Event
+    serves:
+    - ViolationIngestionService
+    part_of: FeedbackProcessor
+  - name: Boucle0Pipeline
+    type: ApplicationProcess
+    description: "6-step deterministic pipeline: model \u2192 guardrails \u2192 policy\
+      \ \u2192 AGT"
+    steps:
+    - etape0
+    - etape1
+    - etape2
+    - etape3
+    - etape4
+    - etape5
+    - etape6
+    realizes:
+    - GroundingService
+  - name: GuardrailQueryService
+    type: ApplicationService
+    description: Hybrid BM25 + semantic search over guardrail corpus
+    serves:
+    - BootstrapProcess
+    realized_by:
+    - archguard
+  - name: ModelQueryService
+    type: ApplicationService
+    description: Read-only ArchiMate model query (elements, relations, views)
+    serves:
+    - BootstrapProcess
+    realized_by:
+    - ArchiServer
+  - name: PolicyEvaluationService
+    type: ApplicationService
+    description: Evaluates tool_call actions against active deny rules
+    serves:
+    - ViolationHandling
+    realized_by:
+    - AGT
+  - name: ViolationIngestionService
+    type: ApplicationService
+    description: Receives and stores AGT violation events for pattern analysis
+    realized_by:
+    - FeedbackProcessor
+  - name: GroundingService
+    type: ApplicationService
+    description: Maps semantic guardrail text to concrete tool deny lists
+    serves:
+    - BootstrapProcess
+    realized_by:
+    - GroundingEngine
   - name: ArchiMateModel
     type: DataObject
     description: Enterprise architecture model (XML/Archi)
@@ -152,63 +467,183 @@ layers:
   - name: RefinementProposal
     type: DataObject
     description: Proposed archguard update from violations
+- name: Technology
+  elements:
+  - name: DeveloperMachine
+    type: Node
+    description: Local workstation running the governance harness
+    hosts:
+    - Python3Runtime
+    - SQLite3
+    - ArchiApplication
+  - name: CIEnvironment
+    type: Node
+    description: CI/CD environment running automated Boucle 0 and policy validation
+  - name: Python3Runtime
+    type: SystemSoftware
+    description: Python 3.11+ runtime for all harness components
+    part_of: DeveloperMachine
+    serves:
+    - archguard
+    - GroundingEngine
+    - AGT
+    - FeedbackProcessor
+  - name: SQLite3
+    type: SystemSoftware
+    description: Embedded database backing archguard's FTS5 guardrail index
+    part_of: DeveloperMachine
+    serves:
+    - archguard
+  - name: ArchiApplication
+    type: SystemSoftware
+    description: Archi EA modelling tool with jArchi plugin hosting archi-server
+    part_of: DeveloperMachine
+    serves:
+    - ArchiServer
+    - ArchiMateWriter
+  - name: LocalhostHTTP
+    type: TechnologyInterface
+    description: HTTP interface for archi-server REST API
+    protocol: HTTP
+    port: 8765
+    serves:
+    - ModelQueryService
+    part_of: DeveloperMachine
+  - name: FileSystemService
+    type: TechnologyService
+    description: Persistent file storage for YAML models and policy files
+    serves:
+    - GroundingEngine
+    - AGT
+    realized_by:
+    - DeveloperMachine
+  - name: bootstrap_model_yaml
+    type: Artifact
+    description: Generated ArchiMate YAML model
+    artifact_type: yaml
+  - name: harness_policy_yaml
+    type: Artifact
+    description: Generated AGT policy YAML
+    artifact_type: yaml
+  - name: guardrail_corpus_jsonl
+    type: Artifact
+    description: archguard guardrail store
+    artifact_type: json
+  - name: toolregistry_yaml
+    type: Artifact
+    description: "Tool registry keyword\u2192tool mapping"
+    artifact_type: yaml
+  - name: audit_log_jsonl
+    type: Artifact
+    description: AGT tamper-evident audit log
+    artifact_type: json
+- name: Implementation
+  elements:
+  - name: Boucle0Execution
+    type: WorkPackage
+    description: Run of the Boucle 0 pipeline producing model + guardrails + policy
+    realizes:
+    - BootstrapModel
+    - AGTPolicy
+    - ActiveGuardrailSet
+  - name: BootstrapModel
+    type: Deliverable
+    description: "bootstrap_model.yaml \u2014 ArchiMate YAML model generated by Boucle\
+      \ 0"
+  - name: AGTPolicy
+    type: Deliverable
+    description: "harness_policy.yaml \u2014 AGT deny-rule policy derived from guardrails"
+  - name: ActiveGuardrailSet
+    type: Deliverable
+    description: Set of archguard guardrails in 'active' status
+  - name: UngovernedState
+    type: Plateau
+    description: AI agents operating without any runtime policy enforcement
+  - name: FullyGovernedState
+    type: Plateau
+    description: All agents governed by active archguard-derived AGT policy with audit
+      trail
+    realized_by:
+    - GovernanceEnforcement
+  - name: GovernanceGap
+    type: Gap
+    description: Delta between ungoverned and fully governed agent operation
+    from_plateau: UngovernedState
+    to_plateau: FullyGovernedState
 relationships:
+- from: D1
+  to: GovernanceEnforcement
+  type: Influence
+  influence: +
+- from: D3
+  to: FeedbackCycle
+  type: Influence
+  influence: +
+- from: GovernanceEnforcement
+  to: G1
+  type: Realization
+- from: FeedbackCycle
+  to: G3
+  type: Realization
+- from: BootstrapProcess
+  to: GovernanceService
+  type: Realization
+- from: ViolationHandling
+  to: ComplianceService
+  type: Realization
+- from: GuardrailRefinement
+  to: GovernanceService
+  type: Realization
+- from: Boucle0Pipeline
+  to: GroundingService
+  type: Realization
+- from: DeveloperMachine
+  to: FileSystemService
+  type: Realization
 - from: ArchiServer
   to: GroundingEngine
   type: Serving
-  forbidden: false
 - from: ArchiServer
   to: ArchiMateModel
   type: Access
   access: read
-  forbidden: false
 - from: archguard
   to: GroundingEngine
   type: Serving
-  forbidden: false
 - from: archguard
   to: FeedbackProcessor
   type: Serving
-  forbidden: false
 - from: archguard
   to: GuardrailCorpus
   type: Access
   access: read
-  forbidden: false
 - from: archguard
   to: GuardrailCorpus
   type: Access
   access: write
-  forbidden: false
 - from: GroundingEngine
   to: AGT
   type: Serving
-  forbidden: false
 - from: GroundingEngine
   to: GuardrailCorpus
   type: Access
   access: read
-  forbidden: false
 - from: GroundingEngine
   to: ArchiMateModel
   type: Access
   access: read
-  forbidden: false
 - from: GroundingEngine
   to: ToolRegistry
   type: Access
   access: read
-  forbidden: false
 - from: GroundingEngine
   to: AGTPolicyDocument
   type: Access
   access: write
-  forbidden: false
 - from: GroundingEngine
   to: GroundingAuditLog
   type: Access
   access: write
-  forbidden: false
 - from: GroundingEngine
   to: GuardrailCorpus
   type: Access
@@ -222,17 +657,14 @@ relationships:
 - from: AGT
   to: AIAgent
   type: Serving
-  forbidden: false
 - from: AGT
   to: AGTPolicyDocument
   type: Access
   access: read
-  forbidden: false
 - from: AGT
   to: AGTAuditLog
   type: Access
   access: write
-  forbidden: false
 - from: AGT
   to: GuardrailCorpus
   type: Access
@@ -254,27 +686,22 @@ relationships:
 - from: AgentMesh
   to: AGT
   type: Serving
-  forbidden: false
 - from: AgentMesh
   to: AgentCredential
   type: Access
   access: read
-  forbidden: false
 - from: AgentMesh
   to: TrustScore
   type: Access
   access: read
-  forbidden: false
 - from: AgentMesh
   to: AgentCredential
   type: Access
   access: write
-  forbidden: false
 - from: AgentMesh
   to: TrustScore
   type: Access
   access: write
-  forbidden: false
 - from: AgentMesh
   to: GuardrailCorpus
   type: Access
@@ -288,12 +715,10 @@ relationships:
 - from: AgentSRE
   to: AGT
   type: Serving
-  forbidden: false
 - from: AgentSRE
   to: AGTAuditLog
   type: Access
   access: read
-  forbidden: false
 - from: AgentSRE
   to: GuardrailCorpus
   type: Access
@@ -307,22 +732,18 @@ relationships:
 - from: FeedbackProcessor
   to: archguard
   type: Serving
-  forbidden: false
 - from: FeedbackProcessor
   to: AGTAuditLog
   type: Access
   access: read
-  forbidden: false
 - from: FeedbackProcessor
   to: GuardrailCorpus
   type: Access
   access: write
-  forbidden: false
 - from: FeedbackProcessor
   to: RefinementProposal
   type: Access
   access: write
-  forbidden: false
 - from: FeedbackProcessor
   to: AGTPolicyDocument
   type: Access
@@ -344,12 +765,10 @@ relationships:
 - from: ArchiMateWriter
   to: ArchiMateGeneratorAgent
   type: Serving
-  forbidden: false
 - from: ArchiMateWriter
   to: ArchiMateModel
   type: Access
   access: write
-  forbidden: false
 - from: ArchiMateWriter
   to: GuardrailCorpus
   type: Access
@@ -368,12 +787,10 @@ relationships:
 - from: ArchiMateGeneratorAgent
   to: ArchiMateWriter
   type: Serving
-  forbidden: false
 - from: ArchiMateGeneratorAgent
   to: ArchiMateModel
   type: Access
   access: read
-  forbidden: false
 - from: ArchiMateGeneratorAgent
   to: GuardrailCorpus
   type: Access
@@ -394,6 +811,199 @@ relationships:
   type: Access
   access: write
   forbidden: true
+- from: PolicyReviewer
+  to: GroundingEngine
+  type: Assignment
+- from: GuardrailAuthor
+  to: archguard
+  type: Assignment
+- from: SecurityAuditor
+  to: AgentSRE
+  type: Assignment
+- from: ArchitectureTeam
+  to: PolicyReviewer
+  type: Assignment
+- from: ArchitectureTeam
+  to: GuardrailAuthor
+  type: Assignment
+- from: AuditCommittee
+  to: SecurityAuditor
+  type: Assignment
+- from: BootstrapProcess
+  to: GovernanceService
+  type: Realization
+- from: BootstrapProcess
+  to: PolicyActivated
+  type: Triggering
+- from: PolicyReviewer
+  to: BootstrapProcess
+  type: Assignment
+- from: ViolationHandling
+  to: ComplianceService
+  type: Realization
+- from: ViolationHandling
+  to: ComplianceReport
+  type: Access
+  access: read
+- from: SecurityAuditor
+  to: ViolationHandling
+  type: Assignment
+- from: GuardrailRefinement
+  to: GovernanceService
+  type: Realization
+- from: GuardrailAuthor
+  to: GuardrailRefinement
+  type: Assignment
+- from: GuardrailQueryService
+  to: BootstrapProcess
+  type: Serving
+- from: archguard
+  to: GuardrailQueryService
+  type: Realization
+- from: ModelQueryService
+  to: BootstrapProcess
+  type: Serving
+- from: ArchiServer
+  to: ModelQueryService
+  type: Realization
+- from: PolicyEvaluationService
+  to: ViolationHandling
+  type: Serving
+- from: AGT
+  to: PolicyEvaluationService
+  type: Realization
+- from: FeedbackProcessor
+  to: ViolationIngestionService
+  type: Realization
+- from: GroundingService
+  to: BootstrapProcess
+  type: Serving
+- from: GroundingEngine
+  to: GroundingService
+  type: Realization
+- from: archguardCLI
+  to: GuardrailQueryService
+  type: Serving
+- from: archguard
+  to: archguardCLI
+  type: Composition
+- from: ArchiServerREST
+  to: ModelQueryService
+  type: Serving
+- from: ArchiServer
+  to: ArchiServerREST
+  type: Composition
+- from: AGTPolicyLoader
+  to: PolicyEvaluationService
+  type: Serving
+- from: AGT
+  to: AGTPolicyLoader
+  type: Composition
+- from: FeedbackWebhook
+  to: ViolationIngestionService
+  type: Serving
+- from: FeedbackProcessor
+  to: FeedbackWebhook
+  type: Composition
+- from: Boucle0Pipeline
+  to: GroundingService
+  type: Realization
+- from: DeveloperMachine
+  to: Python3Runtime
+  type: Composition
+- from: DeveloperMachine
+  to: SQLite3
+  type: Composition
+- from: DeveloperMachine
+  to: ArchiApplication
+  type: Composition
+- from: DeveloperMachine
+  to: Python3Runtime
+  type: Composition
+- from: Python3Runtime
+  to: archguard
+  type: Serving
+- from: Python3Runtime
+  to: GroundingEngine
+  type: Serving
+- from: Python3Runtime
+  to: AGT
+  type: Serving
+- from: Python3Runtime
+  to: FeedbackProcessor
+  type: Serving
+- from: DeveloperMachine
+  to: SQLite3
+  type: Composition
+- from: SQLite3
+  to: archguard
+  type: Serving
+- from: DeveloperMachine
+  to: ArchiApplication
+  type: Composition
+- from: ArchiApplication
+  to: ArchiServer
+  type: Serving
+- from: ArchiApplication
+  to: ArchiMateWriter
+  type: Serving
+- from: FileSystemService
+  to: GroundingEngine
+  type: Serving
+- from: FileSystemService
+  to: AGT
+  type: Serving
+- from: DeveloperMachine
+  to: FileSystemService
+  type: Realization
+- from: DeveloperMachine
+  to: LocalhostHTTP
+  type: Composition
+- from: LocalhostHTTP
+  to: ModelQueryService
+  type: Serving
+- from: GovernanceEnforcement
+  to: G1
+  type: Realization
+- from: GuardrailManagement
+  to: G1
+  type: Realization
+- from: GuardrailManagement
+  to: G3
+  type: Realization
+- from: PolicyDerivation
+  to: G1
+  type: Realization
+- from: PolicyDerivation
+  to: G2
+  type: Realization
+- from: FeedbackCycle
+  to: G3
+  type: Realization
+- from: AgentIdentity
+  to: G1
+  type: Realization
+- from: GovernanceCycle
+  to: GovernanceEnforcement
+  type: Realization
+- from: GovernanceCycle
+  to: FeedbackCycle
+  type: Realization
+- from: Boucle0Strategy
+  to: PolicyDerivation
+  type: Realization
+- from: FailClosedStrategy
+  to: GovernanceEnforcement
+  type: Realization
+- from: Boucle0Execution
+  to: BootstrapModel
+  type: Realization
+- from: Boucle0Execution
+  to: AGTPolicy
+  type: Realization
+- from: Boucle0Execution
+  to: ActiveGuardrailSet
+  type: Realization
 events:
 - ViolationDetected
 - PolicyLoaded

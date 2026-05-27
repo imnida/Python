@@ -1,0 +1,12 @@
+services:
+  ghostdesk:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    volumes:
+      - ..:/workspaces/ghostdesk:cached
+    environment:
+      - GHOSTDESK_DIR=/workspaces/ghostdesk
+      - GHOSTDESK_USER=vscode
+      - TZ=America/Montreal
+      - LANG=fr_CA.UTF-8

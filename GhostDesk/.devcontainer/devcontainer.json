@@ -1,0 +1,17 @@
+{
+  "name": "GhostDesk",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "ghostdesk",
+  "workspaceFolder": "/workspaces/ghostdesk",
+  "remoteUser": "vscode",
+  "forwardPorts": [3000, 5900, 6080],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "charliermarsh.ruff",
+        "Anthropic.claude-code"
+      ]
+    }
+  }
+}

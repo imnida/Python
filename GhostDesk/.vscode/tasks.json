@@ -1,0 +1,53 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "GhostDesk: Start stack",
+      "detail": "Launch supervisord in the foreground — Ctrl-C to stop the whole stack",
+      "type": "shell",
+      "command": "supervisord -c /etc/supervisord.conf -n",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "GhostDesk: Stop stack",
+      "detail": "Ask supervisord to shut down (stops every service, then exits)",
+      "type": "shell",
+      "command": "supervisorctl -c /etc/supervisord.conf shutdown",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "GhostDesk: Restart stack",
+      "detail": "Restart every supervisord program (supervisord itself keeps running)",
+      "type": "shell",
+      "command": "supervisorctl -c /etc/supervisord.conf restart all",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "GhostDesk: Service status",
+      "detail": "List services and their state",
+      "type": "shell",
+      "command": "supervisorctl -c /etc/supervisord.conf status",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    }
+  ]
+}

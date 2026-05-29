@@ -1,0 +1,10 @@
+[project]
+name = "a2a-simple-agent"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.13"
+dependencies = [
+    "a2a-sdk>=0.2.5",
+    "python-a2a>=0.5.5",
+    "uvicorn>=0.34.2",
+]

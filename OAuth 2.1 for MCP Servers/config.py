@@ -1,0 +1,20 @@
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+class Settings():
+    ALPHA_VANTAGE_API_KEY = os.environ.get('ALPHA_VANTAGE_API_KEY')
+    METADATA_JSON_RESPONSE = os.environ.get('METADATA_JSON_RESPONSE')
+    SCALEKIT_ENVIRONMENT_URL = os.environ.get('SCALEKIT_ENVIRONMENT_URL')
+    SCALEKIT_CLIENT_ID = os.environ.get('SCALEKIT_CLIENT_ID')
+    SCALEKIT_CLIENT_SECRET = os.environ.get('SCALEKIT_CLIENT_SECRET')
+    SCALEKIT_RESOURCE_METADATA_URL = os.environ.get('SCALEKIT_RESOURCE_METADATA_URL')
+    SCALEKIT_AUTHORIZATION_SERVERS = os.environ.get('SCALEKIT_AUTHORIZATION_SERVERS')
+    SCALEKIT_AUDIENCE_NAME = os.environ.get('SCALEKIT_AUDIENCE_NAME')
+    SCALEKIT_RESOUCE_NAME = os.environ.get('SCALEKIT_RESOUCE_NAME')
+    SCALEKIT_RESOUCE_DOCS_URL = os.environ.get('SCALEKIT_RESOUCE_DOCS_URL')
+    PORT = 10000
+    
+
+settings = Settings()

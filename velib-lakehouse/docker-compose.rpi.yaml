@@ -1,0 +1,235 @@
+# =============================================================================
+# Vélib Lakehouse — Raspberry Pi 5 (ARM64)
+# Stack complète auto-portée : MinIO + PostgreSQL + Dagster + FastAPI
+#
+# Usage:
+#   cp .env.example .env && nano .env
+#   docker compose -f docker-compose.rpi.yaml up -d
+#
+# Variables requises: voir .env.example
+# Images: DAGSTER_IMAGE et API_IMAGE (buildées en CI et poussées sur GHCR)
+# Pour builder localement: docker compose -f docker-compose.rpi.yaml build
+# =============================================================================
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL — stockage des métadonnées Dagster
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: velib-postgres
+    environment:
+      POSTGRES_USER: ${DAGSTER_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${DAGSTER_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${DAGSTER_POSTGRES_DB}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - velib-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DAGSTER_POSTGRES_USER} -d ${DAGSTER_POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+
+  # ---------------------------------------------------------------------------
+  # MinIO — stockage objet S3-compatible (fichiers Parquet Bronze/Silver/Gold)
+  # Données persistées sur ${MINIO_DATA_PATH} (SSD externe recommandé)
+  # Console: http://<rpi-ip>:9001
+  # ---------------------------------------------------------------------------
+  minio:
+    image: minio/minio:latest
+    container_name: velib-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${AWS_ACCESS_KEY_ID}
+      MINIO_ROOT_PASSWORD: ${AWS_SECRET_ACCESS_KEY}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - ${MINIO_DATA_PATH:-./data/minio}:/data
+    networks:
+      - velib-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  # ---------------------------------------------------------------------------
+  # MinIO Init — crée le bucket au premier démarrage puis s'arrête
+  # ---------------------------------------------------------------------------
+  minio-init:
+    image: minio/mc:latest
+    container_name: velib-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 $${AWS_ACCESS_KEY_ID} $${AWS_SECRET_ACCESS_KEY} &&
+        mc mb --ignore-existing local/$${BUCKET} &&
+        echo 'Bucket prêt.'
+      "
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - BUCKET=${BUCKET}
+    networks:
+      - velib-net
+    restart: "no"
+
+  # ---------------------------------------------------------------------------
+  # Dagster code server — serveur gRPC exposant les assets (Bronze → Gold)
+  # ---------------------------------------------------------------------------
+  velib-lakehouse:
+    image: ${DAGSTER_IMAGE}
+    build:
+      context: .
+      dockerfile: docker/dagster/Dockerfile
+    container_name: velib-lakehouse
+    expose:
+      - "4000"
+    environment:
+      - DAGSTER_HOME=/opt/dagster/dagster_home
+      - DAGSTER_POSTGRES_USER=${DAGSTER_POSTGRES_USER}
+      - DAGSTER_POSTGRES_PASSWORD=${DAGSTER_POSTGRES_PASSWORD}
+      - DAGSTER_POSTGRES_HOST=postgres
+      - DAGSTER_POSTGRES_DB=${DAGSTER_POSTGRES_DB}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - S3_ENDPOINT_URL=http://minio:9000
+      - BUCKET=${BUCKET}
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
+      - ALERT_EMAIL=${ALERT_EMAIL:-}
+    networks:
+      - velib-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+
+  # ---------------------------------------------------------------------------
+  # Dagster webserver — UI Dagster (http://<rpi-ip>:3000)
+  # ---------------------------------------------------------------------------
+  dagster-webserver:
+    image: ${DAGSTER_IMAGE}
+    build:
+      context: .
+      dockerfile: docker/dagster/Dockerfile
+    container_name: velib-dagster-webserver
+    command: ["uv", "run", "dagster-webserver", "-h", "0.0.0.0", "-p", "3000", "-w", "workspace.yaml"]
+    ports:
+      - "3000:3000"
+    environment:
+      - DAGSTER_HOME=/opt/dagster/dagster_home
+      - DAGSTER_POSTGRES_USER=${DAGSTER_POSTGRES_USER}
+      - DAGSTER_POSTGRES_PASSWORD=${DAGSTER_POSTGRES_PASSWORD}
+      - DAGSTER_POSTGRES_HOST=postgres
+      - DAGSTER_POSTGRES_DB=${DAGSTER_POSTGRES_DB}
+    networks:
+      - velib-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      velib-lakehouse:
+        condition: service_started
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  # ---------------------------------------------------------------------------
+  # Dagster daemon — exécute le schedule (toutes les 10 min) et les sensors
+  # ---------------------------------------------------------------------------
+  dagster-daemon:
+    image: ${DAGSTER_IMAGE}
+    build:
+      context: .
+      dockerfile: docker/dagster/Dockerfile
+    container_name: velib-dagster-daemon
+    command: ["uv", "run", "dagster-daemon", "run"]
+    environment:
+      - DAGSTER_HOME=/opt/dagster/dagster_home
+      - DAGSTER_POSTGRES_USER=${DAGSTER_POSTGRES_USER}
+      - DAGSTER_POSTGRES_PASSWORD=${DAGSTER_POSTGRES_PASSWORD}
+      - DAGSTER_POSTGRES_HOST=postgres
+      - DAGSTER_POSTGRES_DB=${DAGSTER_POSTGRES_DB}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - S3_ENDPOINT_URL=http://minio:9000
+      - BUCKET=${BUCKET}
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
+      - ALERT_EMAIL=${ALERT_EMAIL:-}
+    networks:
+      - velib-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      velib-lakehouse:
+        condition: service_started
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  # ---------------------------------------------------------------------------
+  # FastAPI — API REST exposant les métriques pipeline et les alertes Vélib
+  # http://<rpi-ip>:8000
+  # ---------------------------------------------------------------------------
+  velib-api:
+    image: ${API_IMAGE}
+    build:
+      context: .
+      dockerfile: docker/api/Dockerfile
+    container_name: velib-api
+    ports:
+      - "8000:8000"
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - S3_ENDPOINT_URL=http://minio:9000
+      - BUCKET=${BUCKET}
+      - DAGSTER_URL=http://dagster-webserver:3000
+      - API_KEY=${API_KEY}
+      - DOCS_USER=${DOCS_USER}
+      - DOCS_PASSWORD=${DOCS_PASSWORD}
+    networks:
+      - velib-net
+    depends_on:
+      minio:
+        condition: service_healthy
+      dagster-webserver:
+        condition: service_started
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+
+networks:
+  velib-net:
+    driver: bridge
+
+volumes:
+  postgres-data:

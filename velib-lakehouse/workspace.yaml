@@ -1,0 +1,7 @@
+load_from:
+  - grpc_server:
+      host: velib-lakehouse
+      port: 4000
+      location_name: velib_lakehouse
+      location_config:
+        module_name: src.dagster.definitions

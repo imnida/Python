@@ -1,0 +1,17 @@
+name: velib_lakehouse
+version: 1.0.0
+profile: velib_lakehouse
+
+model-paths: ["models"]
+test-paths: ["tests"]
+
+models:
+  velib_lakehouse:
+    silver:
+      +materialized: external
+    gold:
+      +materialized: external
+
+dispatch:
+  - macro_namespace: dbt_utils
+    search_order: [ 'dbt_utils', 'dbt' ]

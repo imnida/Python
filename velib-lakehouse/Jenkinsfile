@@ -1,0 +1,92 @@
+// =============================================================================
+// Vélib Lakehouse — Jenkinsfile
+// Pipeline local sur Raspberry Pi 5 (ARM64 natif, pas de QEMU)
+//
+// Prérequis Jenkins:
+//   - Plugin "Pipeline" installé
+//   - Plugin "Docker Pipeline" installé
+//   - L'agent Jenkins tourne sur le RPi (ou a accès au socket Docker du RPi)
+//   - Le répertoire de déploiement est configuré dans DEPLOY_DIR
+//
+// Déclenchement:
+//   - Webhook GitHub (pas de secret GitHub requis — juste l'URL Jenkins)
+//   - OU poll SCM toutes les 5 minutes (configurable dans Jenkins)
+// =============================================================================
+
+pipeline {
+
+    agent any
+
+    environment {
+        COMPOSE_FILE = 'docker-compose.rpi.yaml'
+        DEPLOY_DIR   = '/opt/velib-lakehouse'
+    }
+
+    options {
+        // Garder les 10 derniers builds
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        // Timeout global
+        timeout(time: 30, unit: 'MINUTES')
+        // Pas de builds parallèles sur la même branche
+        disableConcurrentBuilds()
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Lint') {
+            steps {
+                sh 'uv run ruff check .'
+            }
+        }
+
+        stage('Tests') {
+            steps {
+                sh 'uv run pytest tests/ -v'
+            }
+        }
+
+        stage('Check lockfile') {
+            steps {
+                sh 'uv lock --check'
+            }
+        }
+
+        stage('Build images') {
+            // Build natif ARM64 sur le RPi — pas de QEMU, pas de cross-compilation
+            when {
+                branch 'main'
+            }
+            steps {
+                sh "docker compose -f ${COMPOSE_FILE} build --pull"
+            }
+        }
+
+        stage('Deploy') {
+            when {
+                branch 'main'
+            }
+            steps {
+                sh """
+                    docker compose -f ${COMPOSE_FILE} up -d --remove-orphans
+                    docker image prune -f
+                """
+            }
+        }
+
+    }
+
+    post {
+        success {
+            echo "Pipeline OK — stack déployée sur le RPi."
+        }
+        failure {
+            echo "Pipeline en échec — vérifier les logs ci-dessus."
+        }
+    }
+}

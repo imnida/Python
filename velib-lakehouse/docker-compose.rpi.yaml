@@ -95,7 +95,6 @@ services:
   # Dagster code server — serveur gRPC exposant les assets (Bronze → Gold)
   # ---------------------------------------------------------------------------
   velib-lakehouse:
-    image: ${DAGSTER_IMAGE}
     build:
       context: .
       dockerfile: docker/dagster/Dockerfile
@@ -131,7 +130,6 @@ services:
   # Dagster webserver — UI Dagster (http://<rpi-ip>:3000)
   # ---------------------------------------------------------------------------
   dagster-webserver:
-    image: ${DAGSTER_IMAGE}
     build:
       context: .
       dockerfile: docker/dagster/Dockerfile
@@ -162,7 +160,6 @@ services:
   # Dagster daemon — exécute le schedule (toutes les 10 min) et les sensors
   # ---------------------------------------------------------------------------
   dagster-daemon:
-    image: ${DAGSTER_IMAGE}
     build:
       context: .
       dockerfile: docker/dagster/Dockerfile
@@ -198,7 +195,6 @@ services:
   # http://<rpi-ip>:8000
   # ---------------------------------------------------------------------------
   velib-api:
-    image: ${API_IMAGE}
     build:
       context: .
       dockerfile: docker/api/Dockerfile

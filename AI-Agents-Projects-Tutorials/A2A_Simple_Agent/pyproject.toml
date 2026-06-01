@@ -1,0 +1,16 @@
+[project]
+name = "simple-agent"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "a2a-sdk>=0.2.7",
+    "python-a2a>=0.5.9",
+    "uvicorn>=0.34.3",
+]
+
+[tool.uv.workspace]
+members = [
+    "a2a-demo",
+]

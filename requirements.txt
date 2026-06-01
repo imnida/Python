@@ -1,0 +1,5 @@
+# Core optional dependency for the AnthropicAgent backend
+anthropic>=0.40.0
+
+# Dev / test
+pytest>=8.0.0
